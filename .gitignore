@@ -1,0 +1,50 @@
+
+
+# --- Python/Django ---
+*.py[cod]
+*$py.class
+__pycache__/
+.env
+db.sqlite3
+/static/
+/media/
+local_settings.py
+
+# --- Environments ---
+.venv/
+venv/
+ENV/
+env/
+python/
+
+# --- Node/Frontend (if using npm/yarn) ---
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.eslintcache
+
+
+# Playwright
+/test-results/
+/playwright-report/
+/blob-report/
+/playwright/.cache/
+/playwright/.auth/
+
+
+# --- Build/Distribution ---
+dist/
+build/
+.sass-cache/
+
+# --- OS Specific ---
+.DS_Store
+Thumbs.db
+.ipynb_checkpoints/
+
+# --- IDEs/Editors ---
+.vscode/
+.idea/
+*.swp
+*.swo

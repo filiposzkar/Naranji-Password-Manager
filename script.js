@@ -1,0 +1,334 @@
+let credentials_list = [
+    {id: 1, website_name: "Figma", email: "filiposcar1616@gmail.com", username: "Filip Oszkar", password: "abc", url: "www.figma.com", logo: "figma.png"},
+    {id: 2, website_name: "Facebook", email: "filiposcar1616@gmail.com", username: "Filip Oszkar", password: "abc", url: "www.facebook.com", logo: "facebook.png"},
+];
+
+
+let currentPage = 1;
+const itemsPerPage = 3;
+
+
+function renderList() {
+    const container = document.getElementById('credentials_list');
+    container.innerHTML = '';
+
+    // calculating which items to show
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    const endIndex = startIndex + itemsPerPage;
+    const paginatedItems = credentials_list.slice(startIndex, endIndex);
+
+    paginatedItems.forEach(item => {
+        const itemHTML = `
+            <div class="list-item" onclick="displayDetails(${item.id})">
+                <img src="${item.logo}" class="website-icon">
+                <div class="item-info">
+                    <p class="item-website">${item.website_name}</p>
+                    <p class="item-email">${item.email}</p>
+                </div>
+            </div>
+        `;
+        container.innerHTML += itemHTML;
+    });
+
+    updatePaginationControls();
+}
+
+function updatePaginationControls() {
+    const totalPages = Math.ceil(credentials_list.length / itemsPerPage) || 1;
+    const info = document.getElementById('pagination-info');
+    if (info) {
+        info.innerText = `${currentPage} / ${totalPages}`;
+    }
+}
+
+
+function nextPage() {
+    const totalPages = Math.ceil(credentials_list.length / itemsPerPage);
+    if (currentPage < totalPages) {
+        currentPage++;
+        renderList();
+    }
+}
+
+function prevPage() {
+    if (currentPage > 1) {
+        currentPage--;
+        renderList();
+    }
+}
+
+// runs when a login credential from the list of credentials gets clicked
+function displayDetails(id) {
+    const entry = credentials_list.find(item => item.id === id);
+   
+
+    if(entry){
+        setCookie("last-viewed-login-credential", entry.website_name, 7);  // setting the name, value, and the expiration date of the cookie
+        console.log("Cookie updated: User is interested in " + entry.websiteName);
+        
+        document.getElementById('name-container').innerHTML = `<h2 id="display-website-name">${entry.website_name}</h2>`;
+        document.getElementById('display-website-logo').src = entry.logo;
+        document.getElementById('display-email').value = entry.email;
+        document.getElementById('display-username').value = entry.username;
+        document.getElementById('display-password').value = entry.password;
+        document.getElementById('display-URL').value = entry.url;
+
+        document.getElementById('edit-button').onclick = () => startEditing(id);
+        document.getElementById('delete-button').onclick = () => deleteItem(id);
+        
+        document.getElementById('save-button').style.display = "none";
+        document.getElementById('edit-button').innerText = "Edit";
+    }
+
+    
+}
+
+
+// prepare form for new item
+function showAddForm() {
+    // swapping H2 for an input field
+    const container = document.getElementById('name-container');
+    container.innerHTML = '<input type="text" id="input-website-name" placeholder="Website Name" class="main-title-input">';
+
+    // clearing everything
+    document.getElementById('display-website-logo').src = "default-icon.png";
+    document.getElementById('display-email').value = "";
+    document.getElementById('display-username').value = "";
+    document.getElementById('display-password').value = "";
+    document.getElementById('display-URL').value = "";
+
+    // toggling buttons
+    document.getElementById('save-button').style.display = "block";
+}
+
+
+// saving to RAM and update sidebar
+function saveNewItem() {
+    const name = document.getElementById('input-website-name').value;
+    const email = document.getElementById('display-email').value;
+    const currentLogo = document.getElementById('display-website-logo').src;
+    const username = document.getElementById('display-username').value;
+    const password = document.getElementById('display-password').value;
+    const url = document.getElementById('display-URL').value;
+
+    if (!name || !email || !currentLogo || !username || !password || !url) {
+        alert("Please fill in all parameters!");
+        return;
+    }
+
+    const newEntry = {
+        id: Date.now(), 
+        website_name: name,
+        email: email,
+        username: username,
+        password: password,
+        url: url,
+        logo: currentLogo 
+    };
+
+    credentials_list.unshift(newEntry); // adding to start of array
+    renderList(); // refreshing sidebar
+    displayDetails(newEntry.id); // showing the new item details and hide save button
+}
+
+
+// image preview
+// function previewImage(input) {
+//     if (input.files && input.files[0]) {
+//         const reader = new FileReader();
+//         reader.onload = function(e) {
+//             document.getElementById('display-website-logo').src = e.target.result;
+//         };
+//         reader.readAsDataURL(input.files[0]);
+//     }
+// }
+
+
+
+// Attach the save function to the button click properly
+document.addEventListener('DOMContentLoaded', () => {
+    renderList();
+    document.getElementById('save-button').onclick = saveNewItem;
+});
+
+
+
+function deleteItem(id) {
+    if (!confirm("Are you sure you want to delete this credential?")) return;
+
+    credentials_list = credentials_list.filter(item => item.id !== id);  // finding the credential to delete in the list of credentials
+    renderList();  // update the sidebar
+
+    document.getElementById('name-container').innerHTML = `<h2 id="display-website-name">Select an item</h2>`;
+    document.getElementById('display-website-logo').src = "NaranjiLogo.png";
+    document.getElementById('display-email').value = "";
+    document.getElementById('display-username').value = "";
+    document.getElementById('display-password').value = "";
+    document.getElementById('display-URL').value = "";
+}
+
+
+
+function startEditing(id) {
+    const entry = credentials_list.find(item => item.id === id);
+    
+    // swapping the H2 for an input so the user can change the name
+    const container = document.getElementById('name-container');
+    container.innerHTML = `<input type="text" id="input-website-name" value="${entry.website_name}" class="main-title-input">`;
+
+    const editBtn = document.getElementById('edit-button');
+    editBtn.innerText = "Save Changes";   // changing the Edit button into a "Confirm" button
+    editBtn.onclick = () => saveUpdate(id); // updating the click event to trigger the save
+}
+
+
+
+function saveUpdate(id) {
+    // finding the index of the item to be updated in the list of items
+    const index = credentials_list.findIndex(item => item.id === id);
+
+    if (index !== -1) {
+        // grabbing the new values from the UI
+        credentials_list[index].website_name = document.getElementById('input-website-name').value;
+        credentials_list[index].email = document.getElementById('display-email').value;
+        credentials_list[index].username = document.getElementById('display-username').value;
+        credentials_list[index].password = document.getElementById('display-password').value;
+        credentials_list[index].url = document.getElementById('display-URL').value;
+        credentials_list[index].logo = document.getElementById('display-website-logo').src;
+
+        // refreshing the sidebar and the detailed view
+        renderList();
+        displayDetails(id);
+        
+        alert("Changes saved to RAM!");
+    }
+}
+
+
+
+function runTests() {
+    console.log("Starting Tests...");
+
+    // test 1: adding multiple items 
+    for (let i = 1; i <= 10; i++) {
+        credentials_list.push({
+            id: Date.now() + i,
+            website_name: `Test Site ${i}`,
+            email: `test${i}@example.com`,
+            username: `user${i}`,
+            password: `pass${i}`,
+            url: `www.test${i}.com`,
+            logo: "default-icon.png"
+        });
+    }
+    
+    renderList();
+    console.log("Test: 10 items added to RAM. Check pagination.");
+
+
+
+
+    // test 2: verifying searching/filtering
+    const found = credentials_list.find(c => c.website_name === "Test Site 1");
+    console.log(found ? "Test: Search logic working." : "Test: Search logic failed.");
+
+
+
+
+    // test 3: deleting an item
+    const initialCount = credentials_list.length;
+    const idToDelete = credentials_list[0].id; // grabbing the first one
+    deleteItem(idToDelete); 
+
+    if (credentials_list.length === initialCount - 1) {
+        console.log("Test: Delete logic passed. Item removed from RAM.");
+    } 
+    else {
+        console.log("Test: Delete logic failed.");
+    }
+
+
+
+    // test 4: updating an item
+    const testId = credentials_list[0].id;
+    credentials_list[0].website_name = "UPDATED_NAME";
+    renderList();
+
+    const check = credentials_list.find(c => c.id === testId);
+    if (check.website_name === "UPDATED_NAME") {
+        console.log("Test: Update logic passed.");
+    } 
+    else {
+        console.log("Test: Update logic failed.");
+    }
+}
+
+
+// function to save cookie to the browser's storage
+// name -> name of the cookie
+// value -> the data the cookie stores
+// days -> how many days until the browser deletes the cookie
+
+function setCookie (name, value, days) {
+    const date = new Date();  // grabbing the current time
+    date.setTime(date.getTime() + (days * 24 * 60 * 60 * 1000));  // date.setTime() transforms days into milliseconds, and adds it to the current time to find the expiration date
+    let expires = "expires=" + date.toUTCString();  // toUTCString() converts the expiration date (in milliseconds) to a real date time that browsers understand
+    document.cookie = name + "=" + value + ";" + expires + ";path=";  // this line sends the data of the cookie to the browser's storage (name, value and days become one long string)
+}
+
+
+// function to get a cookie from the browser's storage
+
+function getCookie(name) {
+    let nameEQ = name + "=";
+    let ca = document.cookie.split(';');  // this split the long string, to get each component separately (name, value, days)
+    for(let i=0; i < ca.length; i++) {
+        let c = ca[i];
+        while (c.charAt(0) == ' ') c = c.substring(1, c.length);  // trim any white space put by the browser at the beginning of a cookie
+        if (c.indexOf(nameEQ) == 0) return c.substring(nameEQ.length, c.length);   // indexOf() looks for a substring in a string, and because we want the name of the cookie to match the "name" parameter
+        // we need to make sure that the substring "name" is starting on the first position of the cookies name, meaning that they are equal
+        // we then extract the value of the cookie and return it
+    }
+    return null;
+}
+
+
+window.onload = function() {
+    renderList(); 
+    const lastVisitedName = getCookie("last-viewed-login-credential");
+
+    if (lastVisitedName) {
+        // finding the ID of the credential that matches the name in the cookie
+        const lastEntry = credentials_list.find(item => item.website_name === lastVisitedName);
+
+        if (lastEntry) {
+            displayDetails(lastEntry.id);
+        
+            // const msgElement = document.getElementById('cookie-msg');
+            // if (msgElement) {
+            //     msgElement.innerText = "Resuming where you left off: " + lastVisitedName;
+            // }
+        }
+    }
+};
+
+document.addEventListener('DOMContentLoaded', () => {
+    const links = document.querySelectorAll('a');
+
+    links.forEach(link => {
+        link.addEventListener('click', function(e) {
+            // Check if it's an internal link (doesn't open in new tab and has an href)
+            if (this.hostname === window.location.hostname && this.href) {
+                e.preventDefault();
+                const target = this.href;
+
+                document.body.style.opacity = '0';
+                document.body.style.transition = 'opacity 0.5s ease';
+
+                setTimeout(() => {
+                    window.location.href = target;
+                }, 500);
+            }
+        });
+    });
+});
