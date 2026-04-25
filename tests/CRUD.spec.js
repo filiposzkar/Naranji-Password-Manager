@@ -50,7 +50,8 @@ test('edit an existing login credential', async ({ page }) => {
 
 
 test('add new secret note', async ({ page }) => {
-    await page.goto('/notes/');
+    //await page.goto('/notes/');
+    await page.goto('http://127.0.0.1:8000/notes/');
     await page.click('#add-item-button');
 
     const nameInput = page.locator('#input-notes-name');
@@ -63,7 +64,9 @@ test('add new secret note', async ({ page }) => {
 });
 
 test('edit an existing secret note', async ({ page }) => {
-    await page.goto('/notes/');
+    //await page.goto('/notes/');
+    await page.goto('http://127.0.0.1:8000/notes/');
+
     await page.waitForSelector('.list-item');
 
     await page.locator('.list-item').filter({ hasText: 'Lecture notes' }).click();
@@ -78,7 +81,9 @@ test('edit an existing secret note', async ({ page }) => {
 });
 
 test('delete a secret note', async ({ page }) => {
-    await page.goto('/notes/');
+    //await page.goto('/notes/');
+    await page.goto('http://127.0.0.1:8000/notes/');
+
     page.on('dialog', async dialog => await dialog.accept());
 
     await page.waitForSelector('.list-item');
