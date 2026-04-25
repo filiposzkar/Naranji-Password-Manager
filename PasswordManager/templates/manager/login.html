@@ -1,0 +1,41 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta http-equiv="X-UA-Compatible" content="IE=edge">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <link rel="stylesheet" href="loginStyles.css">
+        <script src="script.js" defer></script>
+        <title>Naranji | Log In</title>
+    </head>
+    <body>
+        <div class="sign-up-form">
+            
+            <img id="NaranjiLogo" src="NaranjiLogo.png">
+            <h1 id="Naranji">Naranji</h1>
+            <p id="welcome-back">Welcome back!</p>
+            
+            <div class="sign-up-inputs">
+                <div class="input-group">
+                    <label>Username</label>
+                    <input type="text" id="given-username">
+                </div>
+
+                <div class="input-group">
+                    <label>Password</label>
+                    <input type="text" id="given-password">
+                </div>
+
+                <div class="input-group">
+                    <label>Secret Key</label>
+                    <input type="text" id="given-secret-key">
+                </div>
+            </div>
+            
+            <a href="index.html">
+                <button id="login-button">Log In</button>
+            </a>
+            
+        </div>
+    </body>

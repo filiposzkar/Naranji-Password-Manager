@@ -1,0 +1,57 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta http-equiv="X-UA-Compatible" content="IE=edge">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <link rel="stylesheet" href="shareNotesStyles.css">
+        <script src="scriptSecretNotes.js" defer></script>
+        <title>Naranji | Share Note</title>
+    </head>
+    <body>
+        <div id="share-modal-overlay" class="modal-overlay">
+    <div class="share-modal">
+        <p class="share-title">Share a link to this item</p>
+        
+        <div class="share-item-header">
+            <img src="NotesIcon.png" alt="Note Icon" class="share-icon">
+            <h2 id="share-item-name">Project ideas</h2>
+        </div>
+
+        <div class="share-options">
+            <div class="option-group">
+                <label>Link expires after</label>
+                <select class="share-select">
+                    <option>1 hour</option>
+                    <option>1 day</option>
+                    <option selected>5 days</option>
+                    <option>30 days</option>
+                    <option>Never</option>
+                </select>
+            </div>
+
+            <div class="option-group">
+                <label>Available to</label>
+                <select class="share-select">
+                    <option selected>Anyone with the link</option>
+                    <option>Only me</option>
+                    <option>Specific emails</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="view-once-container">
+            <input type="checkbox" id="view-once">
+            <label for="view-once">Can be viewed only once</label>
+        </div>
+
+        <div class="share-buttons">
+            <a href="secretNotes.html">
+                <button class="btn-cancel" onclick="closeShareModal()">Cancel</button>
+            </a>
+            <button class="btn-copy">Copy link</button>
+        </div>
+    </div>
+</div>
+    </body>
