@@ -40,6 +40,7 @@ INSTALLED_APPS = [
     "django.contrib.messages",
     "django.contrib.staticfiles",
     "rest_framework",
+    'graphene_django',
     "PasswordManager",
     'corsheaders',
 ]
@@ -129,4 +130,8 @@ CHANNEL_LAYERS = {
     "default": {
         "BACKEND": "channels.layers.InMemoryChannelLayer",
     },
+}
+
+GRAPHENE = {
+    'SCHEMA': 'PasswordManager.schema.schema'
 }

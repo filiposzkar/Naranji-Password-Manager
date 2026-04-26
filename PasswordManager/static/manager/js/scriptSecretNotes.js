@@ -17,13 +17,38 @@ socket.onerror = function(error) {
 };
 
 async function fetchNotes() {
+    const graphqlQuery = {
+        query: `
+            query {
+                allNotes {
+                    id
+                    headline
+                    bodytext   
+                }
+            }
+        `
+    };
     try {
-        const response = await fetch('/api/notes/');
+        const response = await fetch('http://127.0.0.1:8000/graphql/', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(graphqlQuery)
+        });
         if (response.ok) {
-            const data = await response.json();
-            console.log(data);
-            notes_list = data.results; 
+            const result = await response.json();
             
+            // Check for errors
+            if (result.errors) {
+                console.error("GraphQL Errors:", result.errors);
+                return;
+            }
+
+            // Extract the notes from result.data.allNotes
+            notes_list = result.data.allNotes; 
+            
+            console.log("Loaded notes from GraphQL:", notes_list);
+            
+            // Re-render the list to show the notes
             renderList(); 
         }
     } catch (error) {
@@ -165,31 +190,49 @@ async function saveNewItem() {
             return;
         }
 
+        const graphqlQuery = {
+            query: `
+                mutation {
+                    createNote(
+                        headline: "${headline}",
+                        bodytext: "${bodytext}"
+                    ) {
+                        note {
+                            id
+                            headline
+                            bodytext
+                        }
+                    }
+                }
+            `
+        };
+
         console.log("Sending POST request to /api/notes/add/...");
 
-        const response = await fetch('http://127.0.0.1:8000/api/notes/add/', {
+        const response = await fetch('http://127.0.0.1:8000/graphql/', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(noteData)
+            body: JSON.stringify(graphqlQuery) // Send the mutation envelope
         });
 
 
         // handling the Server Response
-        if (response.ok) {
-            const savedItem = await response.json(); 
+        const result = await response.json();
+
+        if (!result.errors) {
+            const savedItem = result.data.createNote.note; 
             
+            // Add to the local list
             notes_list.unshift(savedItem); 
             
             renderList(); 
             displayDetails(savedItem.id); 
-            
-            console.log("Successfully saved to server RAM:", savedItem);
 
-            alert("Note saved to Server RAM!");
+            console.log("Successfully saved note via GraphQL:", savedItem);
+            alert("Note saved to Server!");
         } else {
-            const errorData = await response.json();
-            console.error("Server rejected the request:", errorData);
-            alert("Server Error: " + (errorData.error || "Unknown error"));
+            console.error("GraphQL Errors:", result.errors);
+            alert("Server Error: " + result.errors[0].message);
         }
 
     } catch (error) {
@@ -361,17 +404,37 @@ async function deleteItem(id) {
         return;
     }
 
+    const graphqlQuery = {
+        query: `
+            mutation {
+                deleteNote(id: ${id}) {
+                    success
+                }
+            }
+        `
+    };
+
     try {
-        const response = await fetch(`http://127.0.0.1:8000/api/notes/delete/${id}/`, {
-            method: 'DELETE'
+        const response = await fetch('http://127.0.0.1:8000/graphql/', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(graphqlQuery)
         });
 
-        if (response.ok) {
-            notes_list = notes_list.filter(item => item.id !== id);
+        const result = await response.json();
+
+        if (!result.errors && result.data.deleteNote.success) {
+            
+            // Filter the local notes_list
+            notes_list = notes_list.filter(item => String(item.id) !== String(id));
+            
             renderList();
+
             document.getElementById('detail-view-container').innerHTML = '<p>Select an item to view details</p>';
+            console.log("Note deleted successfully via GraphQL");
         } else {
-            alert("Server couldn't delete this item.");
+            const errorMsg = result.errors ? result.errors[0].message : "Operation failed";
+            alert("Server couldn't delete this note: " + errorMsg);
         }
     } catch (error) {
         handleOfflineDelete(id);
@@ -419,27 +482,51 @@ async function saveUpdate(id) {
         return;
     }
 
+    const graphqlQuery = {
+        query: `
+            mutation {
+                updateNote(
+                    id: ${id},
+                    headline: "${headline}",
+                    bodytext: "${bodytext}"
+                ) {
+                    note {
+                        id
+                        headline
+                        bodytext
+                    }
+                }
+            }
+        `
+    };
+
     try {
         // sending the update to the Django Backend
-        const response = await fetch(`http://127.0.0.1:8000/api/notes/update/${id}/`, {
-            method: 'PUT',
+        const response = await fetch('http://127.0.0.1:8000/graphql/', {
+            method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(updatedData)
+            body: JSON.stringify(graphqlQuery)
         });
 
-        if (response.ok) {
-            const result = await response.json();
+        const result = await response.json();
+
+        if (!result.errors) {
+            const updatedNote = result.data.updateNote.note;
             
-            const index = notes_list.findIndex(item => item.id === id);
+            // Update the item in your local list
+            const index = notes_list.findIndex(item => String(item.id) === String(id));
             if (index !== -1) {
-                notes_list[index] = result;
+                notes_list[index] = updatedNote;
             }
+            
             renderList();
-            displayDetails(id);
-            alert("Changes saved to Server RAM!");
+            displayDetails(id); 
+            
+            alert("Note updated via GraphQL!");
+
         } else {
-            const errorData = await response.json();
-            alert("Error saving: " + (errorData.error || "Unknown error"));
+            console.error("GraphQL Errors:", result.errors);
+            alert("Error saving: " + result.errors[0].message);
         }
     } catch (error) {
         handleOfflineUpdate(id, updatedData);

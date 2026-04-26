@@ -19,6 +19,8 @@ from django.urls import path, include
 from PasswordManager import views
 from PasswordManager.views import CredentialListCreateView, CredentialDetailView, NotesListCreateView, NotesDetailView
 from django.views.decorators.csrf import csrf_exempt
+from graphene_django.views import GraphQLView
+from PasswordManager.schema import schema
 
 urlpatterns = [
     
@@ -38,5 +40,7 @@ urlpatterns = [
     path('api/notes/delete/<int:note_id>/', views.delete_note_view, name='delete_note'),
     path('api/start-loop/', views.start_loop, name='start_loop'),
     path('api/stop-loop/', views.stop_loop, name='stop_loop'),
+
+    path("graphql/", csrf_exempt(GraphQLView.as_view(graphiql=True, schema=schema))),
 ]
 

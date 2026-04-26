@@ -11,28 +11,52 @@ socket.onmessage = function(event) {
     const new_fake_item = JSON.parse(event.data);
     console.log("Received fake entity: ", new_fake_item);
     credentials_list.unshift(new_fake_item); 
-    renderList();
+
+    const container = document.getElementById('credentials_list');
+    const itemHTML = createItemHTML(new_fake_item); // Helper function to generate HTML string
+    container.insertAdjacentHTML('afterbegin', itemHTML);
+    //renderList();
+    //loadMore();
 };
 socket.onerror = function(error) {
     console.error("WebSocket Error: ", error);
 };
 
 async function loadCredentialsFromServer() {
+    const graphqlQuery = {
+        query: `
+            query {
+                allCredentials {
+                    id
+                    websiteName
+                    email
+                    username
+                    password
+                    url
+                    logo
+                }
+            }
+        `
+    };
     try {
-        const response = await fetch('/api/credentials/'); 
+        const response = await fetch('http://127.0.0.1:8000/graphql/', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(graphqlQuery)
+        });
+
         if (response.ok) {
-            const data = await response.json();
+            const result = await response.json(); 
             
-            if (data.results) {
-                credentials_list = data.results; 
-            } else if (data.credentials) {
-                credentials_list = data.credentials;
+            if (result.data && result.data.allCredentials) {
+                credentials_list = result.data.allCredentials;
             } else {
-                credentials_list = data;
+                console.error("GraphQL errors:", result.errors);
+                credentials_list = [];
             }
 
             renderList(); 
-            console.log("Loaded data from server RAM:", credentials_list);
+            console.log("Loaded data from GraphQL:", credentials_list);
         }
     } catch (error) {
         console.error("Failed to load credentials:", error);
@@ -43,7 +67,100 @@ loadCredentialsFromServer();
 
 
 let currentPage = 1;
-const itemsPerPage = 3;
+const itemsPerPage = 5;
+let isLoading = false;
+let nextPageData = null;
+let hasMore = true;
+
+
+async function fetchPage(page) {
+    try {
+        const response = await fetch(`/api/credentials/?page=${page}&page_size=${itemsPerPage}`);
+        const data = await response.json();
+        return data.results;
+    } catch(error) {
+        console.error("Fetch error: ", error);
+        return [];
+    }
+}
+
+
+function appendToContainer(items) {
+    const container = document.getElementById('credentials_list');
+    items.forEach(item => {
+        const itemHTML = `
+        <div class="list-item" onclick="displayDetails(${item.id})">
+            <img src="${item.logo}" class="website-icon"> 
+            <div class="item-info">
+                <p class="item-website">${item.websiteName}</p>
+                <p class="item-email">${item.email}</p> 
+            </div>
+        </div>`;
+        container.insertAdjacentHTML('beforeend', itemHTML);
+    });
+}
+
+
+async function loadMore() {
+    if (isLoading || !hasMore) {
+        return;
+    }
+    isLoading = true;
+
+    const itemsToRender = nextPageData || await fetchPage(currentPage);
+
+    if (itemsToRender.length > 0) {
+        appendToContainer(itemsToRender);
+        currentPage++;
+
+        nextPageData = await fetchPage(currentPage);
+
+        if (nextPageData.length === 0) {
+            hasMore = false;
+        }
+    }
+    else {
+        hasMore = false;
+    }
+    isLoading = false;
+}
+
+
+const observer = new IntersectionObserver((entries) => {
+    if (entries[0].isIntersecting) {
+        loadMore();
+    }
+}, { threshold: 1.0 });
+
+// Initialize
+window.onload = () => {
+    // Add a sentinel element at the end of your HTML list
+    const container = document.getElementById('credentials_list');
+    const sentinel = document.createElement('div');
+    sentinel.id = 'sentinel';
+    container.after(sentinel); 
+    
+    observer.observe(sentinel);
+};
+
+
+// This replaces the old renderList logic
+function displayItems(items) {
+    const container = document.getElementById('credentials_list');
+    // We NO LONGER do container.innerHTML = ''; 
+
+    items.forEach(item => {
+        const itemHTML = `
+        <div class="list-item" onclick="displayDetails(${item.id})">
+            <img src="${item.logo}" class="website-icon"> 
+            <div class="item-info">
+                <p class="item-website">${item.websiteName}</p>
+                <p class="item-email">${item.email}</p> 
+            </div>
+        </div>`;
+        container.insertAdjacentHTML('beforeend', itemHTML);
+    });
+}
 
 
 function renderList() {
@@ -57,14 +174,15 @@ function renderList() {
     const paginatedItems = items.slice(startIndex, endIndex);
 
     paginatedItems.forEach(item => {
+        console.log("This is the item object:", item);
         const itemHTML = `
-            <div class="list-item" onclick="displayDetails(${item.id})">
-                <img src="${item.website_logo}" class="website-icon"> 
-                <div class="item-info">
-                    <p class="item-website">${item.website_name}</p>
-                    <p class="item-email">${item.email}</p> 
-                </div>
+        <div class="list-item" onclick="displayDetails(${item.id})">
+            <img src="${item.logo}" class="website-icon"> 
+            <div class="item-info">
+                <p class="item-website">${item.websiteName}</p>
+                <p class="item-email">${item.email}</p> 
             </div>
+        </div>
         `;
         container.innerHTML += itemHTML;
     });
@@ -103,11 +221,11 @@ function displayDetails(id) {
     const entry = credentials_list.find(item => String(item.id) === String(id));
 
     if(entry){
-        setCookie("last-viewed-login-credential", entry.website_name, 7);  
+        setCookie("last-viewed-login-credential", entry.websiteName, 7);  
         
-        console.log("Cookie updated: User is interested in " + entry.website_name);
+        console.log("Cookie updated: User is interested in " + entry.websiteName);
         
-        document.getElementById('name-container').innerHTML = `<h2 id="display-website-name">${entry.website_name}</h2>`;
+        document.getElementById('name-container').innerHTML = `<h2 id="display-website-name">${entry.websiteName}</h2>`;
         
         document.getElementById('display-website-logo').src = entry.logo; 
         document.getElementById('display-email').value = entry.email;      
@@ -181,7 +299,7 @@ async function saveNewItem() {
     }
 
     const newEntry = {
-        website_name: name,
+        websiteName: name,
         url: url,     
         username: username, 
         email: email,       
@@ -195,26 +313,51 @@ async function saveNewItem() {
         return;
     }
 
+    const graphqlQuery = {
+        query: `
+            mutation {
+                createCredential(
+                    websiteName: "${name}",
+                    password: "${password}",
+                    username: "${username}",
+                    email: "${email}",
+                    url: "${url}"
+                ) {
+                    credential {
+                        id
+                        websiteName
+                        username
+                        password
+                        email
+                        url
+                    }
+                }
+            }
+        `
+    };
+
+
     try {
-        const response = await fetch('http://127.0.0.1:8000/api/credentials/add/', { 
+        const response = await fetch('http://127.0.0.1:8000/graphql/', { 
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(newEntry)
+            body: JSON.stringify(graphqlQuery)
         });
 
-        if (response.ok) {
-            const savedItem = await response.json(); 
+        const result = await response.json();
+
+        if (!result.errors) {
+            // GraphQL nests the response: result.data.mutationName.fieldName
+            const savedItem = result.data.createCredential.credential; 
             
             credentials_list.unshift(savedItem); 
-            
             renderList(); 
             displayDetails(savedItem.id); 
             
-            console.log("Successfully saved to server RAM:", savedItem);
-
+            console.log("Successfully saved via GraphQL:", savedItem);
         } else {
-            const errorData = await response.json();
-            alert("Server Error: " + (errorData.error || "Failed to save"));
+            console.error("GraphQL Errors:", result.errors);
+            alert("Server Error: Failed to save");
         }
     } catch (error) {
         handleOfflineSave(newEntry);
@@ -385,17 +528,40 @@ async function deleteItem(id) {
         return;
     }
 
+    const graphqlQuery = {
+        query: `
+            mutation {
+                deleteCredential(id: ${id}) {
+                    success
+                }
+            }
+        `
+    };
+
     try {
-        const response = await fetch(`http://127.0.0.1:8000/api/credentials/delete/${id}/`, {
-            method: 'DELETE'
+        const response = await fetch('http://127.0.0.1:8000/graphql/', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(graphqlQuery)
         });
 
-        if (response.ok) {
-            credentials_list = credentials_list.filter(item => item.id !== id);
+        const result = await response.json();
+
+        if (!result.errors && result.data.deleteCredential.success) {
+            
+            // Remove from the local list using strict ID comparison
+            credentials_list = credentials_list.filter(item => String(item.id) !== String(id));
+            
             renderList();
+            
+            // Clear the detail view since the item no longer exists
             document.getElementById('detail-view-container').innerHTML = '<p>Select an item to view details</p>';
+            
+            console.log("Successfully deleted item via GraphQL");
+
         } else {
-            alert("Server couldn't delete this item.");
+            const errorMsg = result.errors ? result.errors[0].message : "Unknown error";
+            alert("Server couldn't delete this item: " + errorMsg);
         }
     } catch (error) {
         handleOfflineDelete(id);
@@ -410,7 +576,7 @@ function startEditing(id) {
     
     // swapping the H2 for an input so the user can change the name
     const container = document.getElementById('name-container');
-    container.innerHTML = `<input type="text" id="input-website-name" value="${entry.website_name}" class="main-title-input">`;
+    container.innerHTML = `<input type="text" id="input-website-name" value="${entry.websiteName}" class="main-title-input">`;
 
     const editBtn = document.getElementById('edit-button');
     editBtn.innerText = "Save Changes";   // changing the Edit button into a "Confirm" button
@@ -467,27 +633,57 @@ async function saveUpdate(id) {
         return;
     }
 
+    const graphqlQuery = {
+        query: `
+            mutation {
+                updateCredential(
+                    id: ${id},
+                    websiteName: "${name}",
+                    password: "${password}",
+                    username: "${username}",
+                    email: "${email}",
+                    url: "${url}"
+                ) {
+                    credential {
+                        id
+                        websiteName
+                        username
+                        password
+                        email
+                        url
+                        logo
+                    }
+                }
+            }
+        `
+    };
+
     try {
-        const response = await fetch(`http://127.0.0.1:8000/api/credentials/update/${id}/`, {
-            method: 'PUT',
+        const response = await fetch('http://127.0.0.1:8000/graphql/', {
+            method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(updatedData)
+            body: JSON.stringify(graphqlQuery)
         });
 
-        if (response.ok) {
-            const result = await response.json();
+        const result = await response.json();
+
+        if (!result.errors) {
+            const updatedItem = result.data.updateCredential.credential;
             
-            const index = credentials_list.findIndex(item => item.id === id);
+            // Find and update the item in your local array
+            const index = credentials_list.findIndex(item => String(item.id) === String(id));
             if (index !== -1) {
-                credentials_list[index] = result;
+                credentials_list[index] = updatedItem;
             }
-            renderList();
-            displayDetails(id);
             
-            alert("Changes saved to Server RAM!");
+            renderList();
+            displayDetails(id); // This will now work because displayDetails uses camelCase
+            
+            alert("Changes saved to Server via GraphQL!");
+
         } else {
-            const errorData = await response.json();
-            alert("Error saving: " + (errorData.error || "Unknown error"));
+            console.error("GraphQL Errors:", result.errors);
+            alert("Error saving: " + result.errors[0].message);
         }
     } catch (error) {
         handleOfflineUpdate(id, updatedData);
