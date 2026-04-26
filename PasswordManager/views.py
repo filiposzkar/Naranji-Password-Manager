@@ -11,6 +11,23 @@ from django.views.decorators.csrf import csrf_exempt
 import json
 
 
+import threading
+import time
+from faker import Faker
+from django.http import JsonResponse
+from asgiref.sync import async_to_sync
+from channels.layers import get_channel_layer
+
+
+fake = Faker()
+generator_thread = None
+stop_event = threading.Event()
+
+
+server_side_credentials = []
+server_side_notes = []
+
+
 credentials_list = [
   {"id": 1, "website_name": "Figma", "email": "filiposcar1616@gmail.com", "username": "Filip Oszkar", "password": "abc", "url": "www.figma.com", "logo": "figma.png"},
   {"id": 2, "website_name": "Facebook", "email": "filiposcar1616@gmail.com", "username": "Filip Oszkar", "password": "abc", "url": "www.facebook.com", "logo": "facebook.png"},
@@ -20,6 +37,62 @@ notes_list = [
   {"id": 1, "logo": "NotesIcon.png", "headline": "Project Ideas", "bodytext": "Lorem ipsum"},
   {"id": 2, "logo": "NotesIcon.png", "headline": "Lecture notes", "bodytext": "Lorem ipsum 2"},
 ]
+
+def loop_worker():
+    channel_layer = get_channel_layer()
+    while not stop_event.is_set():
+        # generating credentials
+        new_credential = {
+            "id": int(time.time() * 1000), 
+            "website_name": fake.domain_name(),
+            "email": fake.email(),
+            "username": fake.user_name(),
+            "password": fake.password(),
+            "url": fake.url(),
+            "logo": "https://via.placeholder.com/50",
+            "synced": True
+        }
+        server_side_credentials.append(new_credential)
+
+        # generating notes
+        new_note = {
+            "id": int(time.time() * 1000) + 1, 
+            "title": fake.sentence(nb_words=3),
+            "content": fake.paragraph(nb_sentences=2),
+            "created_at": str(time.ctime()),
+            "synced": True
+        }
+        server_side_notes.append(new_note)
+        
+        if channel_layer:
+            # sending to credentials frequency
+            async_to_sync(channel_layer.group_send)(
+                "credentials_group", 
+                {"type": "broadcast_new_item", "item": new_credential}
+            )
+            # sending to notes frequency
+            async_to_sync(channel_layer.group_send)(
+                "notes_group", 
+                {"type": "broadcast_new_item", "item": new_note}
+            )
+        
+        time.sleep(10) 
+
+
+def start_loop(request):
+    global generator_thread
+    if generator_thread is None or not generator_thread.is_alive():
+        stop_event.clear()
+        generator_thread = threading.Thread(target=loop_worker, daemon=True)
+        generator_thread.start()
+        return JsonResponse({"status": "Generator started"})
+    return JsonResponse({"status": "Already running"})
+
+
+def stop_loop(request):
+    stop_event.set()
+    return JsonResponse({"status": "Generator stopped"})
+
 
 def get_credentials(request):
   return JsonResponse({"credentials": credentials_list}, safe=False)

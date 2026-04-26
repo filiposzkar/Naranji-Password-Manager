@@ -1,4 +1,21 @@
 let credentials_list = []; 
+const offlineData = JSON.parse(localStorage.getItem('offline_credentials') || "[]");
+credentials_list = [...offlineData, ...credentials_list];
+
+
+const socket = new WebSocket('ws://127.0.0.1:8000/ws/credentials/');
+socket.onopen = function(e) {   // this runs if the connection is successful
+    console.log("WebSocket connection established!");
+};
+socket.onmessage = function(event) {
+    const new_fake_item = JSON.parse(event.data);
+    console.log("Received fake entity: ", new_fake_item);
+    credentials_list.unshift(new_fake_item); 
+    renderList();
+};
+socket.onerror = function(error) {
+    console.error("WebSocket Error: ", error);
+};
 
 async function loadCredentialsFromServer() {
     try {
@@ -6,8 +23,6 @@ async function loadCredentialsFromServer() {
         if (response.ok) {
             const data = await response.json();
             
-            // Django REST Framework uses "results" for the list
-            // We ensure credentials_list is always the ARRAY
             if (data.results) {
                 credentials_list = data.results; 
             } else if (data.credentials) {
@@ -171,15 +186,19 @@ async function saveNewItem() {
         username: username, 
         email: email,       
         password: password, 
-        logo: currentLogo   
+        logo: currentLogo,
+        synced: true 
     };
 
+    if (!navigator.onLine) {
+        handleOfflineSave(newEntry);
+        return;
+    }
+
     try {
-        const response = await fetch('api/credentials/add/', { 
+        const response = await fetch('http://127.0.0.1:8000/api/credentials/add/', { 
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
+            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(newEntry)
         });
 
@@ -198,10 +217,157 @@ async function saveNewItem() {
             alert("Server Error: " + (errorData.error || "Failed to save"));
         }
     } catch (error) {
-        console.error("Connection failed:", error);
-        alert("Could not connect to the Python server.");
+        handleOfflineSave(newEntry);
     }
 }
+
+
+function handleOfflineSave(item) {
+    console.warn("Server unreachable! Switching to offline mode.");
+    item.synced = false;
+    item.id = Date.now();
+    credentials_list.unshift(item);
+    renderList();
+
+    const offline = JSON.parse(localStorage.getItem('offline_credentials') || "[]");
+    offline.push(item);
+    localStorage.setItem('offline_credentials', JSON.stringify(offline));
+    alert("Saved offline. Will sync later.");
+}
+
+
+function handleOfflineDelete(id) {
+    console.warn("Server unreachable! Deleting locally, will sync with server later.");
+
+    credentials_list = credentials_list.filter(item => item.id !== id);
+    renderList();
+    document.getElementById('detail-view-container').innerHTML = '<p>Select an item to view details</p>';
+
+    const pendingDeletes = JSON.parse(localStorage.getItem('pending_deletes') || "[]");
+    pendingDeletes.push(id);
+    localStorage.setItem('pending_deletes', JSON.stringify(pendingDeletes));
+
+    alert("Deleted locally. Server will be updated when back online.");
+}
+
+
+function handleOfflineUpdate(id, updatedData) {
+    console.warn("Server unreachable! Updating locally.");
+
+    const index = credentials_list.findIndex(item => item.id === id);
+    if (index !== -1) {
+        credentials_list[index] = { ...updatedData, id: id, synced: false };
+    }
+
+    renderList();
+    displayDetails(id);
+
+    const pendingUpdates = JSON.parse(localStorage.getItem('pending_updates') || "[]");
+    
+    const existingIndex = pendingUpdates.findIndex(u => u.id === id);
+    if (existingIndex !== -1) {
+        pendingUpdates[existingIndex] = { id, data: updatedData };
+    } else {
+        pendingUpdates.push({ id, data: updatedData });
+    }
+    
+    localStorage.setItem('pending_updates', JSON.stringify(pendingUpdates));
+    alert("Updated locally. Changes will sync when the server is back.");
+}
+
+
+async function syncOfflineData() {
+    // 1) Sync new items (POST)
+    const offlineAdds = JSON.parse(localStorage.getItem('offline_credentials') || "[]");
+    for (const item of offlineAdds) {
+        try {
+            const res = await fetch('http://127.0.0.1:8000/api/credentials/add/', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(item)
+            });
+            if (res.ok) {
+                const savedItem = await res.json(); // Get the "Official" item from server
+                removeItemsFromOfflineStorage(item.id);
+                
+                // Update the item in your local JS list so it stays visible
+                const idx = credentials_list.findIndex(i => i.id === item.id);
+                if (idx !== -1) {
+                    credentials_list[idx] = savedItem; // Replace temp ID with server ID
+                }
+            }
+        } catch (e) { break; }
+    }
+
+    // 2) Sync updates (PUT)
+    const offlineUpdates = JSON.parse(localStorage.getItem('pending_updates') || "[]");
+    for (const updateObj of offlineUpdates) {
+        try {
+            const res = await fetch(`http://127.0.0.1:8000/api/credentials/update/${updateObj.id}/`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(updateObj.data)
+            });
+            if (res.ok) {
+                const updatedItem = await res.json();
+                // Clear from local storage
+                let updates = JSON.parse(localStorage.getItem('pending_updates'));
+                updates = updates.filter(u => u.id !== updateObj.id);
+                localStorage.setItem('pending_updates', JSON.stringify(updates));
+
+                // Update local JS memory
+                const idx = credentials_list.findIndex(i => i.id === updateObj.id);
+                if (idx !== -1) credentials_list[idx] = updatedItem;
+            }
+            if (res.status === 404) {
+                console.warn("Item not found on server (likely restart). Re-adding...");
+                // Try to POST it as a new item instead
+                await fetch('http://127.0.0.1:8000/api/credentials/add/', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(updateObj.data)
+                });
+            }
+        } catch (e) { break; }
+    }
+
+    // 3) Sync deletes (DELETE)
+    const offlineDeletes = JSON.parse(localStorage.getItem('pending_deletes') || "[]");
+    for (const id of offlineDeletes) {
+        try {
+            const res = await fetch(`http://127.0.0.1:8000/api/credentials/delete/${id}/`, { method: 'DELETE' });
+            if (res.ok) {
+                let deletes = JSON.parse(localStorage.getItem('pending_deletes'));
+                deletes = deletes.filter(d => d !== id);
+                localStorage.setItem('pending_deletes', JSON.stringify(deletes));
+            }
+        } catch (e) { break; }
+    }
+
+    renderList();
+}
+
+function removeItemsFromOfflineStorage(id) {
+    let offline = JSON.parse(localStorage.getItem('offline_credentials') || "[]");
+    offline = offline.filter(i => i.id !== id);
+    localStorage.setItem('offline_credentials', JSON.stringify(offline));
+}
+
+// checking when the page is first opened/refreshed
+window.addEventListener('load', async () => {
+    // 1. Fetch what the server currently has
+    const response = await fetch('http://127.0.0.1:8000/api/credentials/');
+    const serverData = await response.json();
+    
+    // 2. If server is empty but we have local data, move local data to "offline" to trigger a sync
+    if (serverData.results.length === 0 && credentials_list.length > 0) {
+        localStorage.setItem('offline_credentials', JSON.stringify(credentials_list));
+    }
+    await syncOfflineData();
+});
+
+// checking whenever the browser detects the internet is back
+window.addEventListener('online', syncOfflineData);
 
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -211,39 +377,31 @@ document.addEventListener('DOMContentLoaded', () => {
 
 
 async function deleteItem(id) {
-    if (!id) {
-        console.error("Delete failed: No ID provided.");
+    if (!id) return;
+    if (!confirm("Are you sure?")) return;
+
+    if (!navigator.onLine) {
+        handleOfflineDelete(id);
         return;
     }
-    if (!confirm("Are you sure you want to delete this credential?")) {
-        return;
-    }
+
     try {
-        const response = await fetch(`/api/credentials/delete/${id}/`, {
-            method: 'DELETE',
-            headers: {
-                // 'X-CSRFToken': getCookie('csrftoken') // Add if CSRF is enabled
-            }
+        const response = await fetch(`http://127.0.0.1:8000/api/credentials/delete/${id}/`, {
+            method: 'DELETE'
         });
 
         if (response.ok) {
             credentials_list = credentials_list.filter(item => item.id !== id);
-            
             renderList();
-            
             document.getElementById('detail-view-container').innerHTML = '<p>Select an item to view details</p>';
-            
-            alert("Deleted successfully from RAM!");
         } else {
-            const errorData = await response.json();
-            alert("Error: " + errorData.error);
+            alert("Server couldn't delete this item.");
         }
     } catch (error) {
-        console.error("Network error:", error);
-        //alert("Could not reach the server.");
-        alert("OK!");
+        handleOfflineDelete(id);
     }
 }
+
 
 
 
@@ -304,13 +462,15 @@ async function saveUpdate(id) {
         logo: document.getElementById('display-website-logo').src
     };
 
+    if (!navigator.onLine) {
+        handleOfflineUpdate(id, updatedData);
+        return;
+    }
+
     try {
-        const response = await fetch(`/api/credentials/update/${id}/`, {
+        const response = await fetch(`http://127.0.0.1:8000/api/credentials/update/${id}/`, {
             method: 'PUT',
-            headers: {
-                'Content-Type': 'application/json',
-                // 'X-CSRFToken': getCookie('csrftoken') // Include if CSRF is enabled
-            },
+            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(updatedData)
         });
 
@@ -330,8 +490,7 @@ async function saveUpdate(id) {
             alert("Error saving: " + (errorData.error || "Unknown error"));
         }
     } catch (error) {
-        console.error("Network error:", error);
-        alert("Could not connect to the server.");
+        handleOfflineUpdate(id, updatedData);
     }
 }
 

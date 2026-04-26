@@ -1,4 +1,20 @@
 let notes_list = [];
+const offlineData = JSON.parse(localStorage.getItem('offline_notes') || "[]");
+notes_list = [...offlineData, ...notes_list];
+
+const socket = new WebSocket('ws://127.0.0.1:8000/ws/notes/');
+socket.onopen = function(e) {   // this runs if the connection is successful
+    console.log("WebSocket connection established!");
+};
+socket.onmessage = function(event) {
+    const new_fake_item = JSON.parse(event.data);
+    console.log("Received fake entity: ", new_fake_item);
+    notes_list.unshift(new_fake_item); 
+    renderList();
+};
+socket.onerror = function(error) {
+    console.error("WebSocket Error: ", error);
+};
 
 async function fetchNotes() {
     try {
@@ -117,6 +133,8 @@ function showAddForm() {
 
 
 async function saveNewItem() {
+
+    let noteData = null;
     try {
         const headlineElement = document.getElementById('input-notes-name');
         const bodytextElement = document.getElementById('display-notes-bodytext');
@@ -136,22 +154,25 @@ async function saveNewItem() {
             return; 
         }
 
-        // preparing the data for the backend
-        const noteData = {
+        noteData = {
             headline: headline,
             bodytext: bodytext,
             logo: currentLogo
         };
 
+        if (!navigator.onLine) {
+            handleOfflineSave(noteData);
+            return;
+        }
+
         console.log("Sending POST request to /api/notes/add/...");
 
-        const response = await fetch('/api/notes/add/', {
+        const response = await fetch('http://127.0.0.1:8000/api/notes/add/', {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
+            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(noteData)
         });
+
 
         // handling the Server Response
         if (response.ok) {
@@ -172,10 +193,156 @@ async function saveNewItem() {
         }
 
     } catch (error) {
-        console.error("CRITICAL JS ERROR:", error);
-        alert("A JavaScript error occurred. Check the browser console (F12) for details.");
+        handleOfflineSave(noteData);
     }
 }
+
+
+function handleOfflineSave(item) {
+    console.warn("Server unreachable! Switching to offline mode.");
+    item.synced = false;
+    item.id = Date.now();
+    notes_list.unshift(item);
+    renderList();
+
+    const offline = JSON.parse(localStorage.getItem('offline_notes') || "[]");
+    offline.push(item);
+    localStorage.setItem('offline_notes', JSON.stringify(offline));
+    alert("Saved offline. Will sync later.");
+}
+
+
+function handleOfflineDelete(id) {
+    console.warn("Server unreachable! Deleting locally, will sync with server later.");
+
+    notes_list = notes_list.filter(item => item.id !== id);
+    renderList();
+    document.getElementById('detail-view-container').innerHTML = '<p>Select an item to view details</p>';
+
+    const pendingDeletes = JSON.parse(localStorage.getItem('pending_notes_deletes') || "[]");
+    pendingDeletes.push(id);
+    localStorage.setItem('pending_notes_deletes', JSON.stringify(pendingDeletes));
+
+    alert("Deleted locally. Server will be updated when back online.");
+}
+
+
+function handleOfflineUpdate(id, updatedData) {
+    console.warn("Server unreachable! Updating locally.");
+
+    const index = notes_list.findIndex(item => item.id === id);
+    if (index !== -1) {
+        notes_list[index] = { ...updatedData, id: id, synced: false };
+    }
+
+    renderList();
+    displayDetails(id);
+
+    const pendingUpdates = JSON.parse(localStorage.getItem('pending_notes_updates') || "[]");
+    
+    const existingIndex = pendingUpdates.findIndex(u => u.id === id);
+    if (existingIndex !== -1) {
+        pendingUpdates[existingIndex] = { id, data: updatedData };
+    } else {
+        pendingUpdates.push({ id, data: updatedData });
+    }
+    
+    localStorage.setItem('pending_notes_updates', JSON.stringify(pendingUpdates));
+    alert("Updated locally. Changes will sync when the server is back.");
+}
+
+
+async function syncOfflineNotes() { 
+    // add
+    const offlineAdds = JSON.parse(localStorage.getItem('offline_notes') || "[]");
+    for (const item of offlineAdds) {
+        try {
+            const res = await fetch('http://127.0.0.1:8000/api/notes/add/', { 
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(item)
+            });
+            if (res.ok) {
+                const savedItem = await res.json();
+                removeNotesFromOfflineStorage(item.id);
+                
+                const idx = notes_list.findIndex(i => i.id === item.id); 
+                if (idx !== -1) {
+                    notes_list[idx] = savedItem; 
+                }
+            }
+        } catch (e) { break; }
+    }
+    // update
+    const offlineUpdates = JSON.parse(localStorage.getItem('pending_notes_updates') || "[]");
+    for (const updateObj of offlineUpdates) {
+        try {
+            const res = await fetch(`http://127.0.0.1:8000/api/notes/update/${updateObj.id}/`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(updateObj.data)
+            });
+            if (res.ok) {
+                const updatedItem = await res.json();
+                // Clear from local storage
+                let updates = JSON.parse(localStorage.getItem('pending_notes_updates'));
+                updates = updates.filter(u => u.id !== updateObj.id);
+                localStorage.setItem('pending_notes_updates', JSON.stringify(updates));
+
+                // Update local JS memory
+                const idx = notes_list.findIndex(i => i.id === updateObj.id);
+                if (idx !== -1) notes_list[idx] = updatedItem;
+            }
+            if (res.status === 404) {
+                console.warn("Item not found on server (likely restart). Re-adding...");
+                // Try to POST it as a new item instead
+                await fetch('http://127.0.0.1:8000/api/notes/add/', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(updateObj.data)
+                });
+            }
+        } catch (e) { break; }
+    }
+
+    // delete
+    const offlineDeletes = JSON.parse(localStorage.getItem('pending_notes_deletes') || "[]");
+    for (const id of offlineDeletes) {
+        try {
+            const res = await fetch(`http://127.0.0.1:8000/api/notes/delete/${id}/`, { method: 'DELETE' });
+            if (res.ok) {
+                let deletes = JSON.parse(localStorage.getItem('pending_notes_deletes'));
+                deletes = deletes.filter(d => d !== id);
+                localStorage.setItem('pending_notes_deletes', JSON.stringify(deletes));
+            }
+        } catch (e) { break; }
+    }
+    renderList();
+}
+
+function removeNotesFromOfflineStorage(id) {
+    let offline = JSON.parse(localStorage.getItem('offline_notes') || "[]");
+    offline = offline.filter(i => i.id !== id);
+    localStorage.setItem('offline_notes', JSON.stringify(offline));
+}
+
+window.addEventListener('load', async () => {
+    try {
+        const response = await fetch('http://127.0.0.1:8000/api/notes/');
+        const serverData = await response.json();
+        
+        const results = serverData.results || serverData;
+
+        if (results.length === 0 && notes_list.length > 0) {
+            localStorage.setItem('offline_notes', JSON.stringify(notes_list));
+        }
+        await syncOfflineNotes(); // Fix: name must match your function
+    } catch (e) {
+        await syncOfflineNotes();
+    }
+});
+
+window.addEventListener('online', syncOfflineNotes);
 
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -184,40 +351,32 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 
+
 async function deleteItem(id) {
-    if (!id) {
-        console.error("Delete failed: No ID provided.");
+    if (!id) return;
+    if (!confirm("Are you sure?")) return;
+
+    if (!navigator.onLine) {
+        handleOfflineDelete(id);
         return;
     }
-    if (!confirm("Are you sure you want to delete this credential?")) {
-        return;
-    }
+
     try {
-        const response = await fetch(`/api/notes/delete/${id}/`, {
-            method: 'DELETE',
-            headers: {
-            }
+        const response = await fetch(`http://127.0.0.1:8000/api/notes/delete/${id}/`, {
+            method: 'DELETE'
         });
+
         if (response.ok) {
-            // removing from the local JavaScript array
             notes_list = notes_list.filter(item => item.id !== id);
             renderList();
-            
-            // clearing the detail view since the item no longer exists
             document.getElementById('detail-view-container').innerHTML = '<p>Select an item to view details</p>';
-            
-            alert("Deleted successfully from RAM!");
         } else {
-            const errorData = await response.json();
-            alert("Error: " + errorData.error);
+            alert("Server couldn't delete this item.");
         }
     } catch (error) {
-        console.error("Network error:", error);
-        //alert("Could not reach the server.");
-        alert("OK!");
+        handleOfflineDelete(id);
     }
 }
-
 
 
 
@@ -249,28 +408,28 @@ async function saveUpdate(id) {
         return;
     }
 
-
     const updatedData = {
         headline: document.getElementById('input-notes-name').value,
         bodytext: document.getElementById('display-notes-bodytext').value,
         logo: document.getElementById('display-notes-logo').src
     };
 
+    if (!navigator.onLine) {
+        handleOfflineUpdate(id, updatedData);
+        return;
+    }
+
     try {
         // sending the update to the Django Backend
-        const response = await fetch(`/api/notes/update/${id}/`, {
+        const response = await fetch(`http://127.0.0.1:8000/api/notes/update/${id}/`, {
             method: 'PUT',
-            headers: {
-                'Content-Type': 'application/json',
-                // 'X-CSRFToken': getCookie('csrftoken') // Include if CSRF is enabled
-            },
+            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(updatedData)
         });
 
         if (response.ok) {
             const result = await response.json();
             
-            // updating the local JavaScript list so the UI stays in sync
             const index = notes_list.findIndex(item => item.id === id);
             if (index !== -1) {
                 notes_list[index] = result;
@@ -283,8 +442,7 @@ async function saveUpdate(id) {
             alert("Error saving: " + (errorData.error || "Unknown error"));
         }
     } catch (error) {
-        console.error("Network error:", error);
-        alert("Could not connect to the server.");
+        handleOfflineUpdate(id, updatedData);
     }
 }
 

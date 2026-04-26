@@ -34,7 +34,9 @@ urlpatterns = [
     path('api/credentials/update/<int:cred_id>/', views.update_credential_view, name='update_credential'),
     path('api/credentials/delete/<int:cred_id>/', views.delete_credential_view, name='delete_credential'),
     path('api/notes/add/', views.add_note_view, name='add_note'),
-    path('api/notes/update/<int:cred_id>/', views.update_note_view, name='update_note'),
+    path('api/notes/update/<int:cred_id>/', views.update_note_view, name='update_note'),  # maybe shoule be note_id
     path('api/notes/delete/<int:note_id>/', views.delete_note_view, name='delete_note'),
+    path('api/start-loop/', views.start_loop, name='start_loop'),
+    path('api/stop-loop/', views.stop_loop, name='stop_loop'),
 ]
 
