@@ -15,8 +15,8 @@ socket.onmessage = function(event) {
     const container = document.getElementById('credentials_list');
     const itemHTML = createItemHTML(new_fake_item); // Helper function to generate HTML string
     container.insertAdjacentHTML('afterbegin', itemHTML);
-    //renderList();
-    //loadMore();
+    renderList();
+
 };
 socket.onerror = function(error) {
     console.error("WebSocket Error: ", error);
@@ -72,95 +72,6 @@ let isLoading = false;
 let nextPageData = null;
 let hasMore = true;
 
-
-async function fetchPage(page) {
-    try {
-        const response = await fetch(`/api/credentials/?page=${page}&page_size=${itemsPerPage}`);
-        const data = await response.json();
-        return data.results;
-    } catch(error) {
-        console.error("Fetch error: ", error);
-        return [];
-    }
-}
-
-
-function appendToContainer(items) {
-    const container = document.getElementById('credentials_list');
-    items.forEach(item => {
-        const itemHTML = `
-        <div class="list-item" onclick="displayDetails(${item.id})">
-            <img src="${item.logo}" class="website-icon"> 
-            <div class="item-info">
-                <p class="item-website">${item.websiteName}</p>
-                <p class="item-email">${item.email}</p> 
-            </div>
-        </div>`;
-        container.insertAdjacentHTML('beforeend', itemHTML);
-    });
-}
-
-
-async function loadMore() {
-    if (isLoading || !hasMore) {
-        return;
-    }
-    isLoading = true;
-
-    const itemsToRender = nextPageData || await fetchPage(currentPage);
-
-    if (itemsToRender.length > 0) {
-        appendToContainer(itemsToRender);
-        currentPage++;
-
-        nextPageData = await fetchPage(currentPage);
-
-        if (nextPageData.length === 0) {
-            hasMore = false;
-        }
-    }
-    else {
-        hasMore = false;
-    }
-    isLoading = false;
-}
-
-
-const observer = new IntersectionObserver((entries) => {
-    if (entries[0].isIntersecting) {
-        loadMore();
-    }
-}, { threshold: 1.0 });
-
-// Initialize
-window.onload = () => {
-    // Add a sentinel element at the end of your HTML list
-    const container = document.getElementById('credentials_list');
-    const sentinel = document.createElement('div');
-    sentinel.id = 'sentinel';
-    container.after(sentinel); 
-    
-    observer.observe(sentinel);
-};
-
-
-// This replaces the old renderList logic
-function displayItems(items) {
-    const container = document.getElementById('credentials_list');
-    // We NO LONGER do container.innerHTML = ''; 
-
-    items.forEach(item => {
-        const itemHTML = `
-        <div class="list-item" onclick="displayDetails(${item.id})">
-            <img src="${item.logo}" class="website-icon"> 
-            <div class="item-info">
-                <p class="item-website">${item.websiteName}</p>
-                <p class="item-email">${item.email}</p> 
-            </div>
-        </div>`;
-        container.insertAdjacentHTML('beforeend', itemHTML);
-    });
-}
 
 
 function renderList() {
