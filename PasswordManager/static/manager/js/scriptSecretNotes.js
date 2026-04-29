@@ -379,7 +379,7 @@ window.addEventListener('load', async () => {
         if (results.length === 0 && notes_list.length > 0) {
             localStorage.setItem('offline_notes', JSON.stringify(notes_list));
         }
-        await syncOfflineNotes(); // Fix: name must match your function
+        await syncOfflineNotes(); 
     } catch (e) {
         await syncOfflineNotes();
     }
@@ -425,7 +425,6 @@ async function deleteItem(id) {
 
         if (!result.errors && result.data.deleteNote.success) {
             
-            // Filter the local notes_list
             notes_list = notes_list.filter(item => String(item.id) !== String(id));
             
             renderList();

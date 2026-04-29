@@ -258,7 +258,6 @@ async function saveNewItem() {
         const result = await response.json();
 
         if (!result.errors) {
-            // GraphQL nests the response: result.data.mutationName.fieldName
             const savedItem = result.data.createCredential.credential; 
             
             credentials_list.unshift(savedItem); 
@@ -341,13 +340,12 @@ async function syncOfflineData() {
                 body: JSON.stringify(item)
             });
             if (res.ok) {
-                const savedItem = await res.json(); // Get the "Official" item from server
+                const savedItem = await res.json(); 
                 removeItemsFromOfflineStorage(item.id);
                 
-                // Update the item in your local JS list so it stays visible
                 const idx = credentials_list.findIndex(i => i.id === item.id);
                 if (idx !== -1) {
-                    credentials_list[idx] = savedItem; // Replace temp ID with server ID
+                    credentials_list[idx] = savedItem; 
                 }
             }
         } catch (e) { break; }
@@ -407,13 +405,10 @@ function removeItemsFromOfflineStorage(id) {
     localStorage.setItem('offline_credentials', JSON.stringify(offline));
 }
 
-// checking when the page is first opened/refreshed
 window.addEventListener('load', async () => {
-    // 1. Fetch what the server currently has
     const response = await fetch('http://127.0.0.1:8000/api/credentials/');
     const serverData = await response.json();
     
-    // 2. If server is empty but we have local data, move local data to "offline" to trigger a sync
     if (serverData.results.length === 0 && credentials_list.length > 0) {
         localStorage.setItem('offline_credentials', JSON.stringify(credentials_list));
     }
@@ -459,15 +454,9 @@ async function deleteItem(id) {
         const result = await response.json();
 
         if (!result.errors && result.data.deleteCredential.success) {
-            
-            // Remove from the local list using strict ID comparison
             credentials_list = credentials_list.filter(item => String(item.id) !== String(id));
-            
             renderList();
-            
-            // Clear the detail view since the item no longer exists
             document.getElementById('detail-view-container').innerHTML = '<p>Select an item to view details</p>';
-            
             console.log("Successfully deleted item via GraphQL");
 
         } else {
