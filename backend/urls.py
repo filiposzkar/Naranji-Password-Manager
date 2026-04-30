@@ -31,6 +31,6 @@ urlpatterns = [
     path('api/notes/', NotesListCreateView.as_view(), name="notes-list"),
     path('api/notes/<int:pk>/', NotesDetailView.as_view(), name="notes-detail"),
     
-    path('api/statistics/', views.database_statistics, name='database-stats'),
+    path('api/statistics/', views.api_statistics, name='database-stats'),
 ]
 

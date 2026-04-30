@@ -49,6 +49,34 @@ function renderList() {
 }
 
 
+async function renderVaultChart() {
+    const response = await fetch('/api/statistics/');
+    const stats = await response.json();
+
+    const ctx = document.getElementById('vaultChart').getContext('2d');
+    new Chart(ctx, {
+        type: 'pie', 
+        data: {
+            labels: stats.labels,
+            datasets: [{
+                label: 'Vault Distribution',
+                data: stats.values,
+                backgroundColor: ['#4CAF50', '#FFC107'], // green for creds, yellow for notes
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: {
+                legend: { position: 'bottom' }
+            }
+        }
+    });
+}
+
+// Call this when the page loads
+renderVaultChart();
+
+
 function updatePaginationControls() {
     const totalPages = Math.ceil(credentials_list.length / itemsPerPage) || 1;
     const info = document.getElementById('pagination-info');

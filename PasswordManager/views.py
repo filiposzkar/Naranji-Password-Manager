@@ -280,12 +280,22 @@ class NotesDetailView(APIView):
     return Response({"error": "Already deleted or never existed"}, status=status.HTTP_404_NOT_FOUND)   
 
 
-def database_statistics(request):
-    data = {
-        "total_credentials": Credential.objects.count(),
-        "total_notes": Note.objects.count()
-    }
-    return JsonResponse(data)
+# def database_statistics(request):
+#     data = {
+#         "total_credentials": Credential.objects.count(),
+#         "total_notes": Note.objects.count()
+#     }
+#     return JsonResponse(data)
+
+
+def api_statistics(request):
+    cred_count = Credential.objects.count()
+    note_count = Note.objects.count()
+    
+    return JsonResponse({
+        "labels": ["Credentials", "Notes"],
+        "values": [cred_count, note_count]
+    })
 
 
 
