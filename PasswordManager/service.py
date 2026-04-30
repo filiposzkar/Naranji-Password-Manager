@@ -1,4 +1,5 @@
 from .models import Credential, Note
+from .serializers import CredentialSerializer, SecuredNotesSerializer
 
 
 def add_credential(data):
@@ -7,7 +8,7 @@ def add_credential(data):
       return serializer.save() # returns the model object
   return None
 
-def get_all_credentials(data):
+def get_all_credentials():
   return Credential.objects.all()
 
 def get_credential_by_id(given_id):
@@ -37,7 +38,7 @@ def update_credential(cred_id, new_data):
 def add_note(data):
   return Note.objects.create(**data)
 
-def get_all_notes(data):
+def get_all_notes():
   return Note.objects.all()
 
 def get_note_by_id(given_id):
