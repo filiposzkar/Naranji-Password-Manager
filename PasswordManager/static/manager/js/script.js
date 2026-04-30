@@ -1,23 +1,14 @@
 let credentials_list = []; 
+//const BASE_URL = "http://192.168.1.15:8000";
 
 async function loadCredentialsFromServer() {
+    //const response = await fetch(`${BASE_URL}/api/credentials/`);
     try {
         const response = await fetch('/api/credentials/'); 
         if (response.ok) {
             const data = await response.json();
-            
-            // Django REST Framework uses "results" for the list
-            // We ensure credentials_list is always the ARRAY
-            if (data.results) {
-                credentials_list = data.results; 
-            } else if (data.credentials) {
-                credentials_list = data.credentials;
-            } else {
-                credentials_list = data;
-            }
-
-            renderList(); 
-            console.log("Loaded data from server RAM:", credentials_list);
+            credentials_list = data.results || data; 
+            renderList();
         }
     } catch (error) {
         console.error("Failed to load credentials:", error);
@@ -44,7 +35,7 @@ function renderList() {
     paginatedItems.forEach(item => {
         const itemHTML = `
             <div class="list-item" onclick="displayDetails(${item.id})">
-                <img src="${item.website_logo}" class="website-icon"> 
+                <img src="${item.logo}" class="website-icon"> 
                 <div class="item-info">
                     <p class="item-website">${item.website_name}</p>
                     <p class="item-email">${item.email}</p> 
@@ -175,24 +166,18 @@ async function saveNewItem() {
     };
 
     try {
-        const response = await fetch('api/credentials/add/', { 
+        const response = await fetch('/api/credentials/', { 
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
+            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(newEntry)
         });
 
         if (response.ok) {
             const savedItem = await response.json(); 
-            
             credentials_list.unshift(savedItem); 
-            
             renderList(); 
             displayDetails(savedItem.id); 
-            
-            console.log("Successfully saved to server RAM:", savedItem);
-
+            alert("Saved to Database!");
         } else {
             const errorData = await response.json();
             alert("Server Error: " + (errorData.error || "Failed to save"));
@@ -219,28 +204,20 @@ async function deleteItem(id) {
         return;
     }
     try {
-        const response = await fetch(`/api/credentials/delete/${id}/`, {
-            method: 'DELETE',
-            headers: {
-                // 'X-CSRFToken': getCookie('csrftoken') // Add if CSRF is enabled
-            }
+        const response = await fetch(`/api/credentials/${id}/`, { // New RESTful URL
+            method: 'DELETE'
         });
 
         if (response.ok) {
             credentials_list = credentials_list.filter(item => item.id !== id);
-            
             renderList();
-            
-            document.getElementById('detail-view-container').innerHTML = '<p>Select an item to view details</p>';
-            
-            alert("Deleted successfully from RAM!");
+            alert("Deleted successfully from the database");
         } else {
             const errorData = await response.json();
             alert("Error: " + errorData.error);
         }
     } catch (error) {
         console.error("Network error:", error);
-        //alert("Could not reach the server.");
         alert("OK!");
     }
 }
@@ -305,26 +282,21 @@ async function saveUpdate(id) {
     };
 
     try {
-        const response = await fetch(`/api/credentials/update/${id}/`, {
+        const response = await fetch(`/api/credentials/${id}/`, { 
             method: 'PUT',
-            headers: {
-                'Content-Type': 'application/json',
-                // 'X-CSRFToken': getCookie('csrftoken') // Include if CSRF is enabled
-            },
+            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(updatedData)
         });
 
         if (response.ok) {
             const result = await response.json();
-            
             const index = credentials_list.findIndex(item => item.id === id);
             if (index !== -1) {
                 credentials_list[index] = result;
             }
             renderList();
             displayDetails(id);
-            
-            alert("Changes saved to Server RAM!");
+            alert("Changes saved to database");
         } else {
             const errorData = await response.json();
             alert("Error saving: " + (errorData.error || "Unknown error"));

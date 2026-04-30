@@ -1,15 +1,15 @@
 from rest_framework import serializers
+from .models import Credential, Note
 
-class CredentialSerializer(serializers.Serializer):
-  id = serializers.IntegerField(read_only=True)
-  website_name = serializers.CharField(max_length=300, required=True)
-  url = serializers.URLField(max_length=300)
-  username = serializers.CharField(max_length=300)
-  email = serializers.EmailField(max_length=300)
-  password = serializers.CharField(max_length=300)
+class CredentialSerializer(serializers.ModelSerializer):
+  class Meta:
+    model = Credential
+    fields = ['id', 'website_name', 'url', 'email', 'username', 'password', 'logo']
+    read_only_fields = ['id'] # important for 3NF database
 
 
-class SecuredNotesSerializer(serializers.Serializer):
-  id = serializers.IntegerField(read_only=True)
-  headline = serializers.CharField(max_length = 300, default = "New Note")
-  bodytext = serializers.CharField()
+class SecuredNotesSerializer(serializers.ModelSerializer):
+  class Meta:
+    model = Note
+    fields = ['id', 'headline', 'bodytext', 'logo', 'created_at']
+    read_only_fields = ['id', 'created_at']

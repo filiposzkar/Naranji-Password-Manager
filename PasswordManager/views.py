@@ -10,22 +10,23 @@ from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import csrf_exempt
 import json
 
+from .models import Credential, Note
+from django.db.models import Count
 
-credentials_list = [
-  {"id": 1, "website_name": "Figma", "email": "filiposcar1616@gmail.com", "username": "Filip Oszkar", "password": "abc", "url": "www.figma.com", "logo": "figma.png"},
-  {"id": 2, "website_name": "Facebook", "email": "filiposcar1616@gmail.com", "username": "Filip Oszkar", "password": "abc", "url": "www.facebook.com", "logo": "facebook.png"},
-]
-
-notes_list = [
-  {"id": 1, "logo": "NotesIcon.png", "headline": "Project Ideas", "bodytext": "Lorem ipsum"},
-  {"id": 2, "logo": "NotesIcon.png", "headline": "Lecture notes", "bodytext": "Lorem ipsum 2"},
-]
 
 def get_credentials(request):
   return JsonResponse({"credentials": credentials_list}, safe=False)
 
 def get_notes(request):
   return JsonResponse({"notes": notes_list}, safe=False)
+
+
+# @csrf_exempt
+# def get_credentials(request):
+#     all_credentials = Credential.objects.all()
+#     serializer = CredentialSerializer(all_credentials, many=True)
+#     return JsonResponse({"credentials": serializer.data}, safe=False)
+
 
 def home(request):
   return render(request, 'manager/index.html')
@@ -43,7 +44,6 @@ def add_credential_view(request):
     print(f"DEBUG - Does 'password' key exist? {'password' in data}")
     if request.method == "POST":
         try:
-            
             data = json.loads(request.body)
             
             website = data.get('website_name')
@@ -196,9 +196,12 @@ def delete_note_view(request, note_id):
 class CredentialListCreateView(APIView):  # this is for when we talk to all the credentials, and we dont need an ID
     # displaying all the credentials (or a part of it)
     def get(self, request):
-      data = service.get_all_credentials()
+      data = Credential.objects.all() # fetch from database
 
-      # Reading the user's request
+      website_filter = request.query_params.get('website_name')
+      if website_filter:
+        data = data.filter(website_name__icontains=website_filter)
+
       page = int(request.query_params.get('page', 1))  # if they don't provide a page number, it returns page 1 by default; we use int because data returned by a URL is always a string
       page_size = int(request.query_params.get('page_size', 5))  # how many items are we showing on a page (in this case 5)
       start = (page - 1) * page_size # ex: if we are on page 1 -> (1 - 1) * 5 = 0, so start = 0 and end = 5 => getting items 0 through 4
@@ -207,29 +210,17 @@ class CredentialListCreateView(APIView):  # this is for when we talk to all the 
       paginated_data = data[start:end]  # getting only the elements from the list between the start and end positions
 
       serializer = CredentialSerializer(paginated_data, many=True) # since JavaScript and Python cannot communicate directly, we need a serializer, which converts the Python objects into JSON; many = True is indicating that we are giving a list of elements, not just one
-      return Response({"count": len(data), "results": serializer.data}) # count shows how many credentials we have in the list of credentials, results shows what credentials we have on a single page
+      return Response({"count": data.count(), "results": serializer.data}) # count shows how many credentials we have in the list of credentials, results shows what credentials we have on a single page
     
-
-    # adding a new credential to the list
-    # we use this function in order to determine if it's safe to save the new credential received from JavaScript into our Python list
-    # def post(self, request):
-    #   serializer = CredentialSerializer(data=request.data)  # request.data is the credential given by the user (through the HTML elements); it arrives as JSON
-    #   if serializer.is_valid(): # we call the serializer to see if the given credential is valid and respects the attributes
-    #     new_credential = service.add_credential(serializer.validated_data) # we are adding a "clean" version of the data
-    #     return Response(new_credential, status=status.HTTP_201_CREATED)  # signaling success, a new credential was created and saved
-    #   return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST) # the given data was wrong, so we signal failure
 
     def post(self, request):
-      print("DEBUG: Received data:", request.data) # Check your terminal for this!
-      serializer = CredentialSerializer(data=request.data)
-      if serializer.is_valid():
-          new_credential = service.add_credential(serializer.validated_data)
-          print("DEBUG: Saved successfully!")
-          return Response(new_credential, status=status.HTTP_201_CREATED)
-      
-      print("DEBUG: Validation Errors:", serializer.errors) # This tells you why it failed
-      return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+      serializer = CredentialSerializer(data=request.data) # request.data is the credential given by the user (through the HTML elements); it arrives as JSON
+      if serializer.is_valid(): # we call the serializer to see if the given credential is valid and respects the attributes
+          new_credential = serializer.save() # we are adding a "clean" version of the data
+          return Response(CredentialSerializer(new_credential).data, status=status.HTTP_201_CREATED) # signaling success, a new credential was created and saved
+      return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST) # the given data was wrong, so we signal failure
     
+
 
 @method_decorator(csrf_exempt, name='dispatch')
 class CredentialDetailView(APIView):
@@ -251,7 +242,7 @@ class CredentialDetailView(APIView):
       serializer = CredentialSerializer(data=request.data)
       if serializer.is_valid():
         updated_item = service.update_credential(pk, serializer.validated_data)
-        return Response(updated_item)
+        return Response(CredentialSerializer(updated_item).data)
       return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
@@ -265,7 +256,11 @@ class CredentialDetailView(APIView):
 @method_decorator(csrf_exempt, name='dispatch')
 class NotesListCreateView(APIView):
   def get(self, request):
-    data = service.get_all_notes()
+    data = Note.objects.all()
+
+    headline_filter = request.query_params.get('headline')
+    if headline_filter:
+      data = data.filter(headline__icontains=headline_filter)
 
     page = int(request.query_params.get('page', 1))
     page_size = int(request.query_params.get('page_size', 5))
@@ -275,13 +270,13 @@ class NotesListCreateView(APIView):
     paginated_data = data[start:end]
 
     serializer = SecuredNotesSerializer(paginated_data, many=True)
-    return Response({"count": len(data), "results": serializer.data})
+    return Response({"count": data.count(), "results": serializer.data})
   
   def post(self, request):
     serializer = SecuredNotesSerializer(data=request.data)
     if serializer.is_valid():
-      new_note = service.add_note(serializer.validated_data)
-      return Response(new_note, status=status.HTTP_201_CREATED) 
+      new_note = serializer.save()
+      return Response(SecuredNotesSerializer(new_note).data, status=status.HTTP_201_CREATED)
     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
   
 
@@ -304,7 +299,7 @@ class NotesDetailView(APIView):
     serializer = SecuredNotesSerializer(data=request.data)
     if serializer.is_valid():
       updated_item = service.update_note(pk, serializer.validated_data)
-      return Response(updated_item)
+      return Response(SecuredNotesSerializer(updated_item).data)
     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
   
 
@@ -312,6 +307,35 @@ class NotesDetailView(APIView):
     success = service.delete_note(pk)
     if success:
       return Response(status=status.HTTP_204_NO_CONTENT)
-    return Response({"error": "Already deleted or never existed"}, status=status.HTTP_404_NOT_FOUND)    
+    return Response({"error": "Already deleted or never existed"}, status=status.HTTP_404_NOT_FOUND)   
+
+
+
+# def database_statistics(request):
+#   total_creds = Credential.objects.count()
+#   total_notes = Note.objects.count()
+  
+#   # counting how many credentials per website email
+#   email_stats = Credential.objects.values('email').annotate(total=Count('email'))
+
+#   return JsonResponse({
+#       "total_credentials": total_creds,
+#       "total_notes": total_notes,
+#       "emails_used": list(email_stats)
+#   }) 
+
+def database_statistics(request):
+    # Requirement: "Basic Statistics"
+    stats = {
+        "total_credentials": Credential.objects.count(),
+        "total_notes": Note.objects.count(),
+        # Example of a slightly more advanced stat:
+        "most_common_email": Credential.objects.values('email')
+                             .annotate(count=Count('email'))
+                             .order_by('-count').first()
+    }
+    return JsonResponse(stats)
+
+
 
 

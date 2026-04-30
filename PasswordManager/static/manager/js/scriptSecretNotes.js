@@ -5,9 +5,7 @@ async function fetchNotes() {
         const response = await fetch('/api/notes/');
         if (response.ok) {
             const data = await response.json();
-            console.log(data);
-            notes_list = data.results; 
-            
+            notes_list = data.results || data
             renderList(); 
         }
     } catch (error) {
@@ -143,28 +141,19 @@ async function saveNewItem() {
             logo: currentLogo
         };
 
-        console.log("Sending POST request to /api/notes/add/...");
-
-        const response = await fetch('/api/notes/add/', {
+        const response = await fetch('/api/notes/', {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
+            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(noteData)
         });
 
         // handling the Server Response
         if (response.ok) {
             const savedItem = await response.json(); 
-            
             notes_list.unshift(savedItem); 
-            
             renderList(); 
             displayDetails(savedItem.id); 
-            
-            console.log("Successfully saved to server RAM:", savedItem);
-
-            alert("Note saved to Server RAM!");
+            alert("Saved to database!");
         } else {
             const errorData = await response.json();
             console.error("Server rejected the request:", errorData);
@@ -172,8 +161,8 @@ async function saveNewItem() {
         }
 
     } catch (error) {
-        console.error("CRITICAL JS ERROR:", error);
-        alert("A JavaScript error occurred. Check the browser console (F12) for details.");
+        console.error("Connection failed:", error);
+        alert("Could not connect to the Python server.");
     }
 }
 
@@ -193,27 +182,20 @@ async function deleteItem(id) {
         return;
     }
     try {
-        const response = await fetch(`/api/notes/delete/${id}/`, {
+        const response = await fetch(`/api/notes/${id}/`, {
             method: 'DELETE',
-            headers: {
-            }
         });
+
         if (response.ok) {
-            // removing from the local JavaScript array
             notes_list = notes_list.filter(item => item.id !== id);
             renderList();
-            
-            // clearing the detail view since the item no longer exists
-            document.getElementById('detail-view-container').innerHTML = '<p>Select an item to view details</p>';
-            
-            alert("Deleted successfully from RAM!");
+            alert("Deleted successfully from the database");
         } else {
             const errorData = await response.json();
             alert("Error: " + errorData.error);
         }
     } catch (error) {
         console.error("Network error:", error);
-        //alert("Could not reach the server.");
         alert("OK!");
     }
 }
@@ -258,26 +240,21 @@ async function saveUpdate(id) {
 
     try {
         // sending the update to the Django Backend
-        const response = await fetch(`/api/notes/update/${id}/`, {
+        const response = await fetch(`/api/notes/${id}/`, { 
             method: 'PUT',
-            headers: {
-                'Content-Type': 'application/json',
-                // 'X-CSRFToken': getCookie('csrftoken') // Include if CSRF is enabled
-            },
+            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(updatedData)
         });
 
         if (response.ok) {
             const result = await response.json();
-            
-            // updating the local JavaScript list so the UI stays in sync
             const index = notes_list.findIndex(item => item.id === id);
             if (index !== -1) {
                 notes_list[index] = result;
             }
             renderList();
             displayDetails(id);
-            alert("Changes saved to Server RAM!");
+            alert("Changes saved to the database!");
         } else {
             const errorData = await response.json();
             alert("Error saving: " + (errorData.error || "Unknown error"));

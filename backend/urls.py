@@ -30,11 +30,7 @@ urlpatterns = [
     path('api/credentials/<int:pk>/', CredentialDetailView.as_view(), name="credential-detail"),
     path('api/notes/', NotesListCreateView.as_view(), name="notes-list"),
     path('api/notes/<int:pk>/', NotesDetailView.as_view(), name="notes-detail"),
-    path('api/credentials/add/', views.add_credential_view, name='add_credential'),
-    path('api/credentials/update/<int:cred_id>/', views.update_credential_view, name='update_credential'),
-    path('api/credentials/delete/<int:cred_id>/', views.delete_credential_view, name='delete_credential'),
-    path('api/notes/add/', views.add_note_view, name='add_note'),
-    path('api/notes/update/<int:cred_id>/', views.update_note_view, name='update_note'),
-    path('api/notes/delete/<int:note_id>/', views.delete_note_view, name='delete_note'),
+    
+    path('api/statistics/', views.database_statistics, name='database-stats'),
 ]
 

@@ -1,82 +1,64 @@
-credentials_list = []
-notes_list = []
-id_credentials = 1
-id_notes = 1
+from .models import Credential, Note
 
 
-def add_credential(new_credential):
-  global id_credentials 
-  new_credential['id'] = id_credentials
-  credentials_list.append(new_credential)
-  id_credentials = id_credentials + 1
-  return new_credential
+def add_credential(data):
+  return Credential.objects.create(**data)
 
-
-def get_all_credentials():
-  return credentials_list
-
+def get_all_credentials(data):
+  return Credential.objects.all()
 
 def get_credential_by_id(given_id):
-  for item in credentials_list:
-    if item['id'] == given_id:
-      return item
-  return None
-
-
+  try:
+    return Credential.objects.get(id=given_id)
+  except Credential.DoesNotExist:
+    return None
+  
 def delete_credential(given_id):
-  global credentials_list
-  for item in credentials_list:
-    if item['id'] == given_id:
-      credentials_list.remove(item)
-      return True
+  credential = get_credential_by_id(given_id)
+  if credential:
+    credential.delete()
+    return True
   return False
 
-
 def update_credential(cred_id, new_data):
-  for item in credentials_list:
-    if item["id"] == cred_id:
-      item.update(new_data)  # update() merges the new data into the old dictionary
-      item['id'] = cred_id
-      return item
+  credential = get_credential_by_id(cred_id)
+  if credential:
+    for attr, value in new_data.items():
+      setattr(credential, attr, value)
+    credential.save()
+    return credential
   return None
 
 
-def add_note(new_note):
-  global id_notes
-  
-  new_note['id'] = id_notes
-  print("THIS IS THE NEW NOTE: ", new_note)
-  notes_list.append(new_note)
-  id_notes = id_notes + 1
-  return new_note
 
+def add_note(data):
+  return Note.objects.create(**data)
+
+def get_all_notes(data):
+  return Note.objects.all()
 
 def get_note_by_id(given_id):
-  for item in notes_list:
-    if item['id'] == given_id:
-      return item
-  return None
-
-
-def get_all_notes():
-  return notes_list
-
+  try:
+    return Note.objects.get(id=given_id)
+  except Note.DoesNotExist:
+    return None
 
 def delete_note(given_id):
-    global notes_list
-    for item in notes_list:
-        if item['id'] == given_id:
-            notes_list.remove(item)
-            return True 
-    return False         
-
+  note = get_note_by_id(given_id)
+  if note:
+    note.delete()
+    return True
+  return False
 
 def update_note(note_id, new_data):
-  for item in notes_list:
-    if item["id"] == note_id:
-      item.update(new_data)  # update() merges the new data into the old dictionary
-      return item
+  note = get_note_by_id(note_id)
+  if note:
+    for attr, value in new_data.items():
+      setattr(note, attr, value)
+    note.save()
+    return note
   return None
+
 
 
 
