@@ -14,18 +14,19 @@ from .models import Credential, Note
 from django.db.models import Count
 
 
+
+@csrf_exempt
 def get_credentials(request):
-  return JsonResponse({"credentials": credentials_list}, safe=False)
+    all_credentials = Credential.objects.all()
+    serializer = CredentialSerializer(all_credentials, many=True)
+    return JsonResponse({"credentials": serializer.data}, safe=False)
 
+
+@csrf_exempt
 def get_notes(request):
-  return JsonResponse({"notes": notes_list}, safe=False)
-
-
-# @csrf_exempt
-# def get_credentials(request):
-#     all_credentials = Credential.objects.all()
-#     serializer = CredentialSerializer(all_credentials, many=True)
-#     return JsonResponse({"credentials": serializer.data}, safe=False)
+    all_notes = Note.objects.all()
+    serializer = SecuredNotesSerializer(all_notes, many=True)
+    return JsonResponse({"notes": serializer.data}, safe=False)
 
 
 def home(request):
@@ -34,44 +35,25 @@ def home(request):
 def notes_page(request):
   return render(request, 'manager/secretNotes.html')
 
-@csrf_exempt
+
+@csrf_exempt 
 def add_credential_view(request):
-    print(f"--- DEBUG DATA: {request.body} ---")
-
-    data = json.loads(request.body)
-    print(f"DEBUG - Website: {data.get('website_name')}")
-    print(f"DEBUG - Password: {data.get('account_password')}")
-    print(f"DEBUG - Does 'password' key exist? {'password' in data}")
-    if request.method == "POST":
-        try:
-            data = json.loads(request.body)
-            
-            website = data.get('website_name')
-            username = data.get('username')
-            password = data.get('password')
-
-            if not website or not password:
-                return JsonResponse({"error": "Missing required fields: website_name and password"}, status=400)
-
-            
-            new_entry = {
-                "id": len(credentials_list) + 1,
-                "website_name": website,
-                "url": data.get('url'), 
-                "username": data.get('username'), 
-                "email": data.get('email'),
-                "password": password,
-                "logo": data.get('logo')
-            }
-            new_entry = service.add_credential(data)
-
-            return JsonResponse(new_entry, status=201)
-
-        except Exception as e:
-            return JsonResponse({"error": str(e)}, status=500)
-
-    return JsonResponse({"error": "Only POST allowed"}, status=405)
-
+  if request.method == "POST":
+    try:
+        data = json.loads(request.body)  # parsing the incoming JSON
+        serializer = CredentialSerializer(data=data) # giving the data to the serializer
+        if serializer.is_valid():
+          new_credential = serializer.save()  # performs the SQL insert into the database
+          return JsonResponse(CredentialSerializer(new_credential).data, status=201) # returning the data as JSON
+        else:
+          return JsonResponse({"error": serializer.errors}, status=400)
+    except json.JSONDecodeError:
+      return JsonResponse({"error": "Invalid JSON format"}, status=400)
+    except Exception as e:
+      return JsonResponse({"error": str(e)}, status=500)
+  return JsonResponse({"error": "Only POST allowed"}, status=405)
+         
+         
 
 @csrf_exempt
 def update_credential_view(request, cred_id):
@@ -118,35 +100,23 @@ def delete_credential_view(request, cred_id):
 
 
 
-@csrf_exempt
+@csrf_exempt 
 def add_note_view(request):
-    print(f"--- DEBUG DATA: {request.body} ---")
-    if request.method == "POST":
-        try:
-            data = json.loads(request.body)
-            
-            title = data.get('headline')
-            content = data.get('bodytext')
+  if request.method == "POST":
+    try:
+        data = json.loads(request.body)  # parsing the incoming JSON
+        serializer = SecuredNotesSerializer(data=data) # giving the data to the serializer
+        if serializer.is_valid():
+          new_note = serializer.save()  # performs the SQL insert into the database
+          return JsonResponse(SecuredNotesSerializer(new_note).data, status=201) # returning the data as JSON
+        else:
+          return JsonResponse({"error": serializer.errors}, status=400)
+    except json.JSONDecodeError:
+      return JsonResponse({"error": "Invalid JSON format"}, status=400)
+    except Exception as e:
+      return JsonResponse({"error": str(e)}, status=500)
+  return JsonResponse({"error": "Only POST allowed"}, status=405)
 
-            if not title or not content:
-                return JsonResponse({"error": "Missing required fields: headline and bodytext"}, status=400)
-
-            new_entry = {
-               "id": len(notes_list) + 1,
-               "logo": "manager/assets/NotesIcon.png",
-               "headline": data.get('headline'),
-               "bodytext": data.get('bodytext')
-            }
-            new_entry = service.add_note(data)
-
-            print(f"DEBUG: Current notes in RAM: {service.notes_list}")
-
-            return JsonResponse(new_entry, status=201)
-
-        except Exception as e:
-            return JsonResponse({"error": str(e)}, status=500)
-
-    return JsonResponse({"error": "Only POST allowed"}, status=405) 
 
 
 @csrf_exempt
@@ -310,31 +280,12 @@ class NotesDetailView(APIView):
     return Response({"error": "Already deleted or never existed"}, status=status.HTTP_404_NOT_FOUND)   
 
 
-
-# def database_statistics(request):
-#   total_creds = Credential.objects.count()
-#   total_notes = Note.objects.count()
-  
-#   # counting how many credentials per website email
-#   email_stats = Credential.objects.values('email').annotate(total=Count('email'))
-
-#   return JsonResponse({
-#       "total_credentials": total_creds,
-#       "total_notes": total_notes,
-#       "emails_used": list(email_stats)
-#   }) 
-
 def database_statistics(request):
-    # Requirement: "Basic Statistics"
-    stats = {
+    data = {
         "total_credentials": Credential.objects.count(),
-        "total_notes": Note.objects.count(),
-        # Example of a slightly more advanced stat:
-        "most_common_email": Credential.objects.values('email')
-                             .annotate(count=Count('email'))
-                             .order_by('-count').first()
+        "total_notes": Note.objects.count()
     }
-    return JsonResponse(stats)
+    return JsonResponse(data)
 
 
 

@@ -2,7 +2,10 @@ from .models import Credential, Note
 
 
 def add_credential(data):
-  return Credential.objects.create(**data)
+  serializer = CredentialSerializer(data=data)
+  if serializer.is_valid():
+      return serializer.save() # returns the model object
+  return None
 
 def get_all_credentials(data):
   return Credential.objects.all()
