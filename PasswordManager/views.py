@@ -35,6 +35,8 @@ def home(request):
 def notes_page(request):
   return render(request, 'manager/secretNotes.html')
 
+def statistics_page(request):
+  return render(request, 'manager/statistics.html')
 
 @csrf_exempt 
 def add_credential_view(request):

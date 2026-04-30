@@ -7,7 +7,7 @@
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <link rel="stylesheet" href="{% static 'manager/css/styles.css' %}">  
         <script src="{% static 'manager/js/script.js' %}" defer></script> 
-        <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>      
+        <!-- <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>       -->
         <title>Naranji | Log In Credentials</title>
     </head>
     <body>
@@ -47,12 +47,9 @@
             <main class="main-content">
                 <div id="credential-fullview">
                     <div class="login-info">
-                        <!-- <a href="statistics.html">
+                        <a href="{% url 'statistics_page' %}">
                             <button id="statistics-button">Statistics</button>
-                        </a> -->
-                        <div style="width: 300px; margin: 20px auto;">
-                            <canvas id="vaultChart"></canvas>
-                        </div>
+                        </a>
                         <div class="website-name-logo">
                             <div class="logo-container">
                                 <img id="display-website-logo" src="NaranjiLogo.png" alt="logo" onclick="document.getElementById('logo-input').click()">

@@ -25,6 +25,7 @@ urlpatterns = [
     path('', views.home, name='home'),
     path('notes/', views.notes_page, name='notes_page'),
     path('admin/', admin.site.urls),
+    path('statistics/', views.statistics_page, name='statistics_page'),
     
     path('api/credentials/', CredentialListCreateView.as_view(), name="credential-list"),
     path('api/credentials/<int:pk>/', CredentialDetailView.as_view(), name="credential-detail"),
