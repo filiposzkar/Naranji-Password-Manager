@@ -13,7 +13,7 @@
         <aside class="chat-sidebar">
             <div class="logo-and-headline">
                 <img id="logo" src="{% static 'manager/assets/NaranjiLogo.png' %}">
-                <h3>Chats</h3>
+                <p id="username"><strong>{{ user.username }}</strong></p>
             </div>
             <div class="categories-buttons">
                 <a href="{% url 'home' %}">

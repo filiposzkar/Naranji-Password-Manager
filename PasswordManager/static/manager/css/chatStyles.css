@@ -10,6 +10,11 @@ body {
   background-color: #fcf8e3; 
 }
 
+#username {
+  font-family: 'ChiffonePersonalUse', serif;
+  font-size: 30px;
+  color: #fdfae1;
+}
 
 .chat-sidebar {
   width: 350px;
