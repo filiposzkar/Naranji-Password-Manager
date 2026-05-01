@@ -33,5 +33,7 @@ urlpatterns = [
     path('api/notes/<int:pk>/', NotesDetailView.as_view(), name="notes-detail"),
     
     path('api/statistics/', views.api_statistics, name='database-stats'),
+
+    path('login/', views.login_view, name='login_view'),
 ]
 

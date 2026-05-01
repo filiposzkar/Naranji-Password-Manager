@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Credential, Note
+from .models import Credential, Note, Role, Permission, CustomUser
 
 # admin.site.register(Credential)
 # admin.site.register(Note)
@@ -17,3 +17,6 @@ class NoteAdmin(admin.ModelAdmin):
 # Register the model with the custom admin class
 admin.site.register(Credential, CredentialAdmin)
 admin.site.register(Note, NoteAdmin)
+admin.site.register(Role)
+admin.site.register(Permission)
+admin.site.register(CustomUser)

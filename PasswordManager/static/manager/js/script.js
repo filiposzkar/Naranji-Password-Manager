@@ -4,7 +4,10 @@ let credentials_list = [];
 async function loadCredentialsFromServer() {
     //const response = await fetch(`${BASE_URL}/api/credentials/`);
     try {
-        const response = await fetch('/api/credentials/'); 
+        const response = await fetch('/api/credentials/', {
+            method: 'GET',
+            credentials: 'include' // important to show only this user's data
+        });
         if (response.ok) {
             const data = await response.json();
             credentials_list = data.results || data; 
@@ -48,6 +51,35 @@ function renderList() {
     updatePaginationControls();
 }
 
+
+// function getCookie(name) {
+//     let nameEQ = name + "=";
+//     let ca = document.cookie.split(';');  // this split the long string, to get each component separately (name, value, days)
+//     for(let i=0; i < ca.length; i++) {
+//         let c = ca[i];
+//         while (c.charAt(0) == ' ') c = c.substring(1, c.length);  // trim any white space put by the browser at the beginning of a cookie
+//         if (c.indexOf(nameEQ) == 0) return c.substring(nameEQ.length, c.length);   // indexOf() looks for a substring in a string, and because we want the name of the cookie to match the "name" parameter
+//         // we need to make sure that the substring "name" is starting on the first position of the cookies name, meaning that they are equal
+//         // we then extract the value of the cookie and return it
+//     }
+//     return null;
+// }
+
+
+function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+}
 
 async function renderVaultChart() {
     const response = await fetch('/api/statistics/');
@@ -119,11 +151,22 @@ function displayDetails(id) {
         document.getElementById('display-password').value = entry.password;
         document.getElementById('display-URL').value = entry.url;          
 
-        document.getElementById('edit-button').onclick = () => startEditing(id);
-        document.getElementById('delete-button').onclick = () => deleteItem(id);
-        
-        document.getElementById('save-button').style.display = "none";
-        document.getElementById('edit-button').innerText = "Edit";
+        const editBtn = document.getElementById('edit-button');
+        const deleteBtn = document.getElementById('delete-button');
+        const saveBtn = document.getElementById('save-button');
+
+        if (editBtn) {
+            editBtn.style.display = "block"; 
+            editBtn.onclick = () => startEditing(id);
+            editBtn.innerText = "Edit";
+        }
+        if (deleteBtn) {
+            deleteBtn.style.display = "block"; 
+            deleteBtn.onclick = () => deleteItem(id);
+        }
+        if (saveBtn) {
+            saveBtn.style.display = "none";
+        }
     }
     else {
         console.error("Could not find credential with ID:", id);
@@ -157,6 +200,8 @@ async function saveNewItem() {
     const username = document.getElementById('display-username').value;
     const password = document.getElementById('display-password').value;
     const url = document.getElementById('display-URL').value;
+    const token = getCookie('csrftoken');
+    console.log("My CSRF Token is:", token);
 
     // client-side validation
     if (!name) {
@@ -194,11 +239,16 @@ async function saveNewItem() {
     };
 
     try {
-        const response = await fetch('/api/credentials/', { 
+        const response = await fetch('/api/credentials/', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(newEntry)
-        });
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCookie('csrftoken'),
+                'X-Requested-With': 'XMLHttpRequest'
+            },
+            body: JSON.stringify(newEntry),
+            credentials: 'include'
+        })
 
         if (response.ok) {
             const savedItem = await response.json(); 
@@ -410,18 +460,18 @@ function setCookie (name, value, days) {
 
 // function to get a cookie from the browser's storage
 
-function getCookie(name) {
-    let nameEQ = name + "=";
-    let ca = document.cookie.split(';');  // this split the long string, to get each component separately (name, value, days)
-    for(let i=0; i < ca.length; i++) {
-        let c = ca[i];
-        while (c.charAt(0) == ' ') c = c.substring(1, c.length);  // trim any white space put by the browser at the beginning of a cookie
-        if (c.indexOf(nameEQ) == 0) return c.substring(nameEQ.length, c.length);   // indexOf() looks for a substring in a string, and because we want the name of the cookie to match the "name" parameter
-        // we need to make sure that the substring "name" is starting on the first position of the cookies name, meaning that they are equal
-        // we then extract the value of the cookie and return it
-    }
-    return null;
-}
+// function getCookie(name) {
+//     let nameEQ = name + "=";
+//     let ca = document.cookie.split(';');  // this split the long string, to get each component separately (name, value, days)
+//     for(let i=0; i < ca.length; i++) {
+//         let c = ca[i];
+//         while (c.charAt(0) == ' ') c = c.substring(1, c.length);  // trim any white space put by the browser at the beginning of a cookie
+//         if (c.indexOf(nameEQ) == 0) return c.substring(nameEQ.length, c.length);   // indexOf() looks for a substring in a string, and because we want the name of the cookie to match the "name" parameter
+//         // we need to make sure that the substring "name" is starting on the first position of the cookies name, meaning that they are equal
+//         // we then extract the value of the cookie and return it
+//     }
+//     return null;
+// }
 
 
 window.onload = function() {
@@ -434,11 +484,6 @@ window.onload = function() {
 
         if (lastEntry) {
             displayDetails(lastEntry.id);
-        
-            // const msgElement = document.getElementById('cookie-msg');
-            // if (msgElement) {
-            //     msgElement.innerText = "Resuming where you left off: " + lastVisitedName;
-            // }
         }
     }
 };

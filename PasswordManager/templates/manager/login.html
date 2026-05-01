@@ -5,37 +5,33 @@
         <meta charset="UTF-8">
         <meta http-equiv="X-UA-Compatible" content="IE=edge">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <link rel="stylesheet" href="loginStyles.css">
+        <link rel="stylesheet" href="{% static 'manager/css/loginStyles.css' %}">  
         <script src="script.js" defer></script>
         <title>Naranji | Log In</title>
     </head>
     <body>
         <div class="sign-up-form">
-            
-            <img id="NaranjiLogo" src="NaranjiLogo.png">
+            <img id="NaranjiLogo" src="{% static 'manager/assets/NaranjiLogo.png' %}">
             <h1 id="Naranji">Naranji</h1>
             <p id="welcome-back">Welcome back!</p>
             
-            <div class="sign-up-inputs">
-                <div class="input-group">
+            <form method="POST" action="{% url 'login_view' %}">
+                {% csrf_token %} <div class="input-group">
                     <label>Username</label>
-                    <input type="text" id="given-username">
+                    <input type="text" name="username" id="given-username" required>
                 </div>
 
                 <div class="input-group">
                     <label>Password</label>
-                    <input type="text" id="given-password">
+                    <input type="password" name="password" id="given-password" required>
                 </div>
 
                 <div class="input-group">
                     <label>Secret Key</label>
-                    <input type="text" id="given-secret-key">
+                    <input type="text" name="secret_key" id="given-secret-key">
                 </div>
-            </div>
-            
-            <a href="index.html">
-                <button id="login-button">Log In</button>
-            </a>
-            
+
+                <button type="submit" id="login-button">Log In</button>
+            </form>
         </div>
     </body>

@@ -1,4 +1,4 @@
-from django.shortcuts import render
+from django.shortcuts import render, redirect
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
@@ -13,6 +13,14 @@ import json
 from .models import Credential, Note
 from django.db.models import Count
 
+from django.contrib.auth import authenticate, login
+from django.contrib.auth.decorators import login_required
+from django.contrib import messages
+
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.authentication import SessionAuthentication
+
+from django.views.decorators.csrf import ensure_csrf_cookie
 
 
 @csrf_exempt
@@ -38,7 +46,32 @@ def notes_page(request):
 def statistics_page(request):
   return render(request, 'manager/statistics.html')
 
-@csrf_exempt 
+
+def login_view(request):
+    if request.method == "POST":
+      u = request.POST.get('username')
+      p = request.POST.get('password')
+
+      user = authenticate(request, username=u, password=p) # Django checks the hashed password automatically
+      if user is not None:
+        login(request, user)
+        return redirect('home') # sending the user to the credentials list
+      else:
+         messages.error(request, "Invalid username or password!")
+    
+    return render(request, 'manager/login.html')
+
+@ensure_csrf_cookie
+@login_required
+def index(request):
+    if request.user.is_superuser or request.user.role.name == "Admin":  # fetch the credentials based on role
+        credentials = Credential.objects.all()  # admins see everything in the system
+    else:
+        credentials = Credential.objects.filter(user=request.user) # normal users only see their own credentials
+    return render(request, 'index.html', {'credentials': credentials})
+    
+
+
 def add_credential_view(request):
   if request.method == "POST":
     try:
@@ -57,7 +90,6 @@ def add_credential_view(request):
          
          
 
-@csrf_exempt
 def update_credential_view(request, cred_id):
     if request.method == "PUT":
         try:
@@ -83,8 +115,6 @@ def update_credential_view(request, cred_id):
 
 
 
-
-@csrf_exempt
 def delete_credential_view(request, cred_id):
     if request.method == "DELETE":
         try:
@@ -101,8 +131,6 @@ def delete_credential_view(request, cred_id):
     return JsonResponse({"error": "Only DELETE allowed"}, status=405)
 
 
-
-@csrf_exempt 
 def add_note_view(request):
   if request.method == "POST":
     try:
@@ -121,7 +149,6 @@ def add_note_view(request):
 
 
 
-@csrf_exempt
 def update_note_view(request, cred_id):
     if request.method == "PUT":
         try:
@@ -145,8 +172,6 @@ def update_note_view(request, cred_id):
 
     return JsonResponse({"error": "Only PUT allowed"}, status=405)
 
-
-@csrf_exempt
 def delete_note_view(request, note_id):
     if request.method == "DELETE":
         try:
@@ -164,11 +189,22 @@ def delete_note_view(request, note_id):
 
 
 
-@method_decorator(csrf_exempt, name='dispatch')
 class CredentialListCreateView(APIView):  # this is for when we talk to all the credentials, and we dont need an ID
-    # displaying all the credentials (or a part of it)
+    authentication_classes = [SessionAuthentication]
+    permission_classes = [IsAuthenticated]
+
     def get(self, request):
-      data = Credential.objects.all() # fetch from database
+      is_admin = False
+      if request.user.is_superuser:
+        is_admin = True
+      elif hasattr(request.user, 'role') and request.user.role is not None:
+        if request.user.role.name == "Admin":
+            is_admin = True
+
+      if is_admin:
+        data = Credential.objects.all()
+      else:
+        data = Credential.objects.filter(user=request.user)
 
       website_filter = request.query_params.get('website_name')
       if website_filter:
@@ -184,17 +220,15 @@ class CredentialListCreateView(APIView):  # this is for when we talk to all the 
       serializer = CredentialSerializer(paginated_data, many=True) # since JavaScript and Python cannot communicate directly, we need a serializer, which converts the Python objects into JSON; many = True is indicating that we are giving a list of elements, not just one
       return Response({"count": data.count(), "results": serializer.data}) # count shows how many credentials we have in the list of credentials, results shows what credentials we have on a single page
     
-
     def post(self, request):
-      serializer = CredentialSerializer(data=request.data) # request.data is the credential given by the user (through the HTML elements); it arrives as JSON
-      if serializer.is_valid(): # we call the serializer to see if the given credential is valid and respects the attributes
-          new_credential = serializer.save() # we are adding a "clean" version of the data
-          return Response(CredentialSerializer(new_credential).data, status=status.HTTP_201_CREATED) # signaling success, a new credential was created and saved
-      return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST) # the given data was wrong, so we signal failure
+      serializer = CredentialSerializer(data=request.data)
+      if serializer.is_valid():
+          serializer.save(user=request.user)
+          return Response(serializer.data, status=status.HTTP_201_CREATED)
+      return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
     
 
 
-@method_decorator(csrf_exempt, name='dispatch')
 class CredentialDetailView(APIView):
     def get(self, request, pk):
       credential = service.get_credential_by_id(pk)
@@ -225,10 +259,16 @@ class CredentialDetailView(APIView):
       return Response({"error": "Already deleted or never existed"}, status=status.HTTP_404_NOT_FOUND)    
     
 
-@method_decorator(csrf_exempt, name='dispatch')
+
 class NotesListCreateView(APIView):
+  authentication_classes = [SessionAuthentication]
+  permission_classes = [IsAuthenticated]
+
   def get(self, request):
-    data = Note.objects.all()
+    if request.user.role.name == "Admin":
+      data = Note.objects.all()
+    else:
+      data = Note.objects.filter(user=request.user)
 
     headline_filter = request.query_params.get('headline')
     if headline_filter:
@@ -247,13 +287,12 @@ class NotesListCreateView(APIView):
   def post(self, request):
     serializer = SecuredNotesSerializer(data=request.data)
     if serializer.is_valid():
-      new_note = serializer.save()
+      new_note = serializer.save(user=request.user)
       return Response(SecuredNotesSerializer(new_note).data, status=status.HTTP_201_CREATED)
     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
   
 
 
-@method_decorator(csrf_exempt, name='dispatch')
 class NotesDetailView(APIView):
   def get(self, request, pk):
     note = service.get_note_by_id(pk)
@@ -280,14 +319,6 @@ class NotesDetailView(APIView):
     if success:
       return Response(status=status.HTTP_204_NO_CONTENT)
     return Response({"error": "Already deleted or never existed"}, status=status.HTTP_404_NOT_FOUND)   
-
-
-# def database_statistics(request):
-#     data = {
-#         "total_credentials": Credential.objects.count(),
-#         "total_notes": Note.objects.count()
-#     }
-#     return JsonResponse(data)
 
 
 def api_statistics(request):
