@@ -2,7 +2,10 @@ let notes_list = [];
 
 async function fetchNotes() {
     try {
-        const response = await fetch('/api/notes/');
+        const response = await fetch('/api/notes/', {
+            method: 'GET',
+            credentials: 'include' // important to show only this user's data
+        });
         if (response.ok) {
             const data = await response.json();
             notes_list = data.results || data
@@ -49,6 +52,22 @@ function renderList() {
 }
 
 
+function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+}
+
+
 
 function updatePaginationControls() {
     const totalPages = Math.ceil(notes_list.length / itemsPerPage) || 1;
@@ -74,11 +93,9 @@ function prevPage() {
     }
 }
 
-// runs when a login credential from the list of credentials gets clicked
+
 function displayDetails(id) {
     const entry = notes_list.find(item => item.id === id);
-   
-
     if(entry){
         setCookie("last-viewed-notes", entry.headline, 7);  // setting the name, value, and the expiration date of the cookie
         console.log("Cookie updated: User is interested in " + entry.headline);
@@ -87,14 +104,29 @@ function displayDetails(id) {
         document.getElementById('display-notes-logo').src = entry.logo;
         document.getElementById('display-notes-bodytext').value = entry.bodytext;
         
-        document.getElementById('edit-button').onclick = () => startEditing(id);
-        document.getElementById('delete-button').onclick = () => deleteItem(id);
+        // document.getElementById('edit-button').onclick = () => startEditing(id);
+        // document.getElementById('delete-button').onclick = () => deleteItem(id);
         
-        document.getElementById('save-button').style.display = "none";
-        document.getElementById('edit-button').innerText = "Edit";
-    }
+        // document.getElementById('save-button').style.display = "none";
+        // document.getElementById('edit-button').innerText = "Edit";
 
-    
+        const editBtn = document.getElementById('edit-button');
+        const deleteBtn = document.getElementById('delete-button');
+        const saveBtn = document.getElementById('save-button');
+
+        if (editBtn) {
+            editBtn.style.display = "block"; 
+            editBtn.onclick = () => startEditing(id);
+            editBtn.innerText = "Edit";
+        }
+        if (deleteBtn) {
+            deleteBtn.style.display = "block"; 
+            deleteBtn.onclick = () => deleteItem(id);
+        }
+        if (saveBtn) {
+            saveBtn.style.display = "none";
+        }
+    }
 }
 
 
@@ -119,13 +151,12 @@ async function saveNewItem() {
         const headlineElement = document.getElementById('input-notes-name');
         const bodytextElement = document.getElementById('display-notes-bodytext');
         const logoElement = document.getElementById('display-notes-logo');
-
+        const token = getCookie('csrftoken');
+        console.log("My CSRF Token is:", token);
         
         const headline = headlineElement.value;
         const bodytext = bodytextElement.value;
-        
         const currentLogo = logoElement ? logoElement.src : "NaranjiLogo.png";
-
         console.log("Data collected:", { headline, bodytext, currentLogo });
 
         // client-side validation
@@ -143,9 +174,14 @@ async function saveNewItem() {
 
         const response = await fetch('/api/notes/', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(noteData)
-        });
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCookie('csrftoken'),
+                'X-Requested-With': 'XMLHttpRequest'
+            },
+            body: JSON.stringify(noteData),
+            credentials: 'include'
+        })
 
         // handling the Server Response
         if (response.ok) {
@@ -338,18 +374,18 @@ function setCookie (name, value, days) {
 
 // function to get a cookie from the browser's storage
 
-function getCookie(name) {
-    let nameEQ = name + "=";
-    let ca = document.cookie.split(';');  // this split the long string, to get each component separately (name, value, days)
-    for(let i=0; i < ca.length; i++) {
-        let c = ca[i];
-        while (c.charAt(0) == ' ') c = c.substring(1, c.length);  // trim any white space put by the browser at the beginning of a cookie
-        if (c.indexOf(nameEQ) == 0) return c.substring(nameEQ.length, c.length);   // indexOf() looks for a substring in a string, and because we want the name of the cookie to match the "name" parameter
-        // we need to make sure that the substring "name" is starting on the first position of the cookies name, meaning that they are equal
-        // we then extract the value of the cookie and return it
-    }
-    return null;
-}
+// function getCookie(name) {
+//     let nameEQ = name + "=";
+//     let ca = document.cookie.split(';');  // this split the long string, to get each component separately (name, value, days)
+//     for(let i=0; i < ca.length; i++) {
+//         let c = ca[i];
+//         while (c.charAt(0) == ' ') c = c.substring(1, c.length);  // trim any white space put by the browser at the beginning of a cookie
+//         if (c.indexOf(nameEQ) == 0) return c.substring(nameEQ.length, c.length);   // indexOf() looks for a substring in a string, and because we want the name of the cookie to match the "name" parameter
+//         // we need to make sure that the substring "name" is starting on the first position of the cookies name, meaning that they are equal
+//         // we then extract the value of the cookie and return it
+//     }
+//     return null;
+// }
 
 
 window.onload = function() {

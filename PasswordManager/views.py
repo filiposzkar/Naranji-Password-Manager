@@ -265,7 +265,14 @@ class NotesListCreateView(APIView):
   permission_classes = [IsAuthenticated]
 
   def get(self, request):
-    if request.user.role.name == "Admin":
+    is_admin = False
+    if request.user.is_superuser:
+      is_admin = True
+    elif hasattr(request.user, 'role') and request.user.role is not None:
+      if request.user.role.name == "Admin":
+          is_admin = True
+
+    if is_admin:
       data = Note.objects.all()
     else:
       data = Note.objects.filter(user=request.user)
@@ -284,6 +291,7 @@ class NotesListCreateView(APIView):
     serializer = SecuredNotesSerializer(paginated_data, many=True)
     return Response({"count": data.count(), "results": serializer.data})
   
+
   def post(self, request):
     serializer = SecuredNotesSerializer(data=request.data)
     if serializer.is_valid():
