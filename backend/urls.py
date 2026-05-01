@@ -35,5 +35,6 @@ urlpatterns = [
     path('api/statistics/', views.api_statistics, name='database-stats'),
 
     path('login/', views.login_view, name='login_view'),
+    path('chat/', views.chat_view, name='chat'),
 ]
 

@@ -69,7 +69,10 @@ def index(request):
     else:
         credentials = Credential.objects.filter(user=request.user) # normal users only see their own credentials
     return render(request, 'index.html', {'credentials': credentials})
-    
+
+
+def chat_view(request):
+  return render(request, 'manager/chat.html')    
 
 
 def add_credential_view(request):

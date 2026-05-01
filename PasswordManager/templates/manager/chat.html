@@ -1,0 +1,57 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="{% static 'manager/css/chatStyles.css' %}">  
+    <title>Naranji | Chat</title>
+</head>
+<body>
+    <div class="chat-container">
+        <aside class="chat-sidebar">
+            <div class="logo-and-headline">
+                <img id="logo" src="{% static 'manager/assets/NaranjiLogo.png' %}">
+                <h3>Chats</h3>
+            </div>
+            <div class="categories-buttons">
+                <a href="{% url 'home' %}">
+                    <button id="login-button">Logins</button>
+                </a>
+                <a href="{% url 'notes_page' %}">
+                    <button id="notes-button">Notes</button>
+                </a>
+                <a href="{% url 'chat' %}">
+                    <button id="chat-button">Chats</button>
+                </a>
+                {% if  user.is_superuser or user.role.name == "Admin" %}
+                <a href="{% url 'statistics_page' %}">
+                    <button id="statistics-button">Statistics</button>
+                </a>
+                {% endif %}
+            </div>
+            <div id="room-list">
+                <div class="room-item active" data-room="general"># General</div>
+                <div class="room-item" data-room="dev-team"># Dev Team</div>
+            </div>
+        </aside>
+
+        <main class="chat-main">
+            <header class="chat-header">
+                <h2 id="current-room-name">General</h2>
+            </header>
+
+            <div id="chat-log" class="chat-messages">
+            </div>
+
+            <footer class="chat-input-area">
+                <input id="chat-message-input" type="text" placeholder="Type a message...">
+                <button id="chat-message-submit">Send</button>
+            </footer>
+        </main>
+    </div>
+
+    <script src="scriptChat.js"></script>
+</body>
+</html>

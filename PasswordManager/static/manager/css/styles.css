@@ -45,22 +45,32 @@
 }
 
 .categories-buttons {
-    display: flex;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
     width: 300px;       
     gap: 15px; 
     margin-top: 20px;
     height: 35px;
+    margin-bottom: 20px;
+    height: auto;
+    margin-bottom: 10px;
 }
 
-#login-button, #notes-button {
-    flex: 1;   
+
+#login-button, #notes-button, #chat-button, #statistics-button {
+    width: 100%;
     padding: 10px;
     border-radius: 20px; 
     border: none;
     cursor: pointer;
     font-weight: bold;
-    width: 140px;
+    width: 100%; /* Change this to 100% so they fill the grid cells nicely */
+    font-family: 'Wavehaus', sans-serif;
+    font-size: 15px;
+    color: #fdfae1;
+    background-color: #3d5c26;
 }
+
 
 #login-button {
     background-color: #ff6b35; 
@@ -78,27 +88,35 @@
     cursor: pointer;
 }
 
+#chat-button {
+    background-color: #3d5c26; 
+    color: #fdfae1;
+    font-family: 'Wavehaus', sans-serif;
+    font-size: 15px;
+    cursor: pointer;
+    grid-column: 1; 
+    grid-row: 2;
+}
+
 
 #notes-button:hover {
     background-color: #ff6b35; 
     color: #fdfae1;
 }
 
-#statistics-button {
-    margin-left: 80px;
-    flex: 1;   
-    padding: 10px;
-    border-radius: 20px; 
-    border: none;
-    cursor: pointer;
-    font-weight: bold;
-    width: 140px;
+#chat-button:hover{
+  background-color: #ff6b35; 
+  color: #fdfae1;
+}
 
-    background-color:#5A7011; 
-    color: #fdfae1;
-    font-family: 'Wavehaus', sans-serif;
-    font-size: 15px;
-    cursor: pointer;
+#statistics-button {
+  background-color: #3d5c26; 
+  color: #fdfae1;
+  font-family: 'Wavehaus', sans-serif;
+  font-size: 15px;
+  cursor: pointer;
+  grid-column: 2; 
+  grid-row: 2;
 }
 
 #statistics-button:hover{

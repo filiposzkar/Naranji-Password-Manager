@@ -1,0 +1,228 @@
+@import url('https://fonts.cdnfonts.com/css/wavehaus');
+@import url('https://fonts.cdnfonts.com/css/chiffonepersonaluse');
+
+
+body {
+  margin: 0;
+  font-family: 'Wavehaus', sans-serif;
+  display: flex;
+  height: 100vh;
+  background-color: #fcf8e3; 
+}
+
+
+.chat-sidebar {
+  width: 350px;
+  background-color: #223809; 
+  color: white;
+  display: flex;
+  flex-direction: column;
+  padding: 20px;
+  box-shadow: 2px 0 5px rgba(0,0,0,0.1);
+  min-height: 100vh;
+  box-sizing: border-box;
+}
+
+.chat-sidebar h3 {
+  text-align: center;
+  font-size: 30px;
+  color: #fdfae1;
+  margin-bottom: 20px;
+  font-family: 'ChiffonePersonalUse', serif;
+}
+
+.room-list {
+  margin-top: 20px; 
+  display: flex;
+  flex-direction: column;
+}
+
+.room-item {
+  background: rgba(255, 255, 255, 0.1);
+  margin-bottom: 10px;
+  padding: 15px;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: background 0.3s;
+  border: 1px solid rgba(255,255,255,0.05);
+}
+
+.room-item:hover, .room-item.active {
+  background: rgba(255, 255, 255, 0.2);
+  border-left: 5px solid #a4c639; 
+}
+
+
+.chat-main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+}
+
+.chat-header {
+  padding: 20px 40px;
+  background-color: rgba(255,255,255,0.3);
+  border-bottom: 1px solid #e0d9b5;
+}
+
+.chat-header h2 {
+  color: #2d3e1d;
+  margin: 0;
+}
+
+.chat-messages {
+  flex: 1;
+  overflow-y: auto;
+  padding: 30px 40px;
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+
+
+.message {
+  max-width: 60%;
+  padding: 12px 18px;
+  border-radius: 15px;
+  line-height: 1.4;
+  position: relative;
+}
+
+.message.incoming {
+  align-self: flex-start;
+  background-color: #fff;
+  color: #333;
+  border: 1px solid #e0d9b5;
+  border-bottom-left-radius: 2px;
+}
+
+.message.outgoing {
+  align-self: flex-end;
+  background-color: #dcedc8; 
+  color: #2d3e1d;
+  border: 1px solid #c5e1a5;
+  border-bottom-right-radius: 2px;
+}
+
+.message strong {
+  display: block;
+  font-size: 0.8em;
+  margin-bottom: 4px;
+  color: #689f38;
+}
+
+
+.chat-input-area {
+  padding: 20px 40px;
+  background: white;
+  display: flex;
+  gap: 15px;
+  border-top: 1px solid #e0d9b5;
+}
+
+#chat-message-input {
+  flex: 1;
+  padding: 12px 20px;
+  border-radius: 25px;
+  border: 1px solid #ccc;
+  outline: none;
+  background-color: #fafafa;
+}
+
+#chat-message-submit {
+  background-color: #a4c639; 
+  color: #2d3e1d;
+  border: none;
+  padding: 10px 25px;
+  border-radius: 25px;
+  font-weight: bold;
+  cursor: pointer;
+  transition: transform 0.1s;
+}
+
+#chat-message-submit:active {
+  transform: scale(0.95);
+}
+
+.logo-and-headline {
+  display: flex;
+  gap: 20px;
+}
+
+#logo {
+  width: 50px;
+  height: 70px;
+}
+
+.categories-buttons {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  width: 300px;       
+  gap: 15px; 
+  margin-top: 20px;
+  height: 35px;
+  margin-bottom: 20px;
+  height: auto;
+  margin-bottom: 20px;
+}
+
+.categories-buttons a {
+  text-decoration: none; 
+  display: block;       
+}
+
+#login-button, #notes-button, #chat-button, #statistics-button {
+  width: 100%;
+  padding: 10px;
+  border-radius: 20px; 
+  border: none;
+  cursor: pointer;
+  font-weight: bold;
+  width: 100%; /* Change this to 100% so they fill the grid cells nicely */
+  font-family: 'Wavehaus', sans-serif;
+  font-size: 15px;
+  color: #fdfae1;
+  background-color: #3d5c26;
+}
+
+#login-button {
+  background-color: #3d5c26; 
+  color: #fdfae1;
+  font-family: 'Wavehaus', sans-serif;
+  font-size: 15px;
+  cursor: pointer;
+}
+
+#notes-button {
+  background-color: #3d5c26; 
+  color: #fdfae1;
+  font-family: 'Wavehaus', sans-serif;
+  font-size: 15px;
+  cursor: pointer;
+}
+
+#chat-button {
+  background-color: #ff6b35; 
+  color: #fdfae1;
+  font-family: 'Wavehaus', sans-serif;
+  font-size: 15px;
+  cursor: pointer;
+  grid-column: 1; 
+  grid-row: 2;
+}
+
+#login-button:hover {
+  background-color: #ff6b35; 
+  color: #fdfae1;
+}
+
+#notes-button:hover {
+  background-color: #ff6b35; 
+  color: #fdfae1;
+}
+
+#statistics-button:hover {
+  background-color: #ff6b35; 
+  color: #fdfae1;
+}
