@@ -33,6 +33,9 @@ AUTH_USER_MODEL = 'PasswordManager.CustomUser'
 # Application definition
 
 INSTALLED_APPS = [
+    'daphne',  
+    'channels',
+    "PasswordManager",
     "django.contrib.admin",
     "django.contrib.auth",
     "django.contrib.contenttypes",
@@ -40,7 +43,6 @@ INSTALLED_APPS = [
     "django.contrib.messages",
     "django.contrib.staticfiles",
     "rest_framework",
-    "PasswordManager",
     'corsheaders',
 ]
 
@@ -74,7 +76,8 @@ TEMPLATES = [
     },
 ]
 
-WSGI_APPLICATION = "backend.wsgi.application"
+#WSGI_APPLICATION = "backend.wsgi.application"
+ASGI_APPLICATION = 'backend.asgi.application'
 
 
 # Database

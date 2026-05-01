@@ -52,6 +52,8 @@
         </main>
     </div>
 
-    <script src="scriptChat.js"></script>
+    <!-- <script src="scriptChat.js"></script> -->
+    <script src="{% static 'manager/js/scriptChat.js' %}" defer></script> 
+    <span id="user-data" style="display:none;">{{ request.user.username }}</span>
 </body>
 </html>
