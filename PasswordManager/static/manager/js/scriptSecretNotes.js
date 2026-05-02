@@ -38,7 +38,7 @@ function renderList() {
     paginatedItems.forEach(item => {
         const itemHTML = `
             <div class="list-item" onclick="displayDetails(${item.id})">
-                <img src="${item.logo}" class="notes-icon">
+                <img src="/static/manager/assets/Note.png" class="notes-icon">
                 <div class="item-info">
                     <p class="item-header">${item.headline}</p>
                     <p class="item-bodytext">${item.bodytext}</p>
@@ -101,7 +101,7 @@ function displayDetails(id) {
         console.log("Cookie updated: User is interested in " + entry.headline);
         
         document.getElementById('name-container').innerHTML = `<h2 id="display-notes-name">${entry.headline}</h2>`;
-        document.getElementById('display-notes-logo').src = entry.logo;
+        document.getElementById('display-notes-logo').src = "/static/manager/assets/Note.png";
         document.getElementById('display-notes-bodytext').value = entry.bodytext;
         
         // document.getElementById('edit-button').onclick = () => startEditing(id);
@@ -137,7 +137,7 @@ function showAddForm() {
     container.innerHTML = '<input type="text" id="input-notes-name" placeholder="Notes Name" class="main-title-input">';
 
     // clearing everything
-    document.getElementById('display-notes-logo').src = "{% static 'manager/assets/NotesIcon.png' %}";
+    document.getElementById('display-notes-logo').src = "/static/manager/assets/Note.png";
     document.getElementById('display-notes-bodytext').value = "";
 
     // toggling buttons

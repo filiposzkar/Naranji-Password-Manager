@@ -6,7 +6,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
     self.room_name = self.scope['url_route']['kwargs']['room_name']  # getting the room name from the URL (scope is like a request)
     self.room_group_name = f'chat_{self.room_name}' # creating an unique ID for the room in Redis, by appending the room name to the word "chat"
 
-    await self.channel_layer.group_add( # the user is joining the room/group in Redis, so that the user will be notified of any new messages appearing the group
+    await self.channel_layer.group_add( # the user is joining the group in Redis, so that the user will be notified of any new messages appearing the group
       self.room_group_name,
       self.channel_name
     )
@@ -19,20 +19,20 @@ class ChatConsumer(AsyncWebsocketConsumer):
     )
   
   async def receive(self, text_data):  # receiving messages from the browser (JavaScript)
-    data = json.loads(text_data)
+    data = json.loads(text_data)  # turning the received text into a Python dictionary
     message = data['message']
     user = self.scope["user"]  # getting the logged-in user name
-    username = user.username if user.is_authenticated else "Anonymous"
+    username = user.username if user.is_authenticated else "anonymous"
 
     await self.channel_layer.group_send( # broadcasting the message to everyone in this room vis Redis
       self.room_group_name, {
-        'type': 'chat_message',
+        'type': 'chat_message',  
         'message': message,
         'username': username
       }
     )
 
-  async def chat_message(self, event):  # receiving message from the Redis group
+  async def chat_message(self, event):  # this method runs when everyone from the group needs to receive the new message (Redis sends the new message to everyone)
     message = event['message']
     username = event['username']
 

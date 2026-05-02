@@ -38,7 +38,7 @@ function renderList() {
     paginatedItems.forEach(item => {
         const itemHTML = `
             <div class="list-item" onclick="displayDetails(${item.id})">
-                <img src="${item.logo}" class="website-icon"> 
+                <img src="static/manager/assets/Login.png" class="website-icon"> 
                 <div class="item-info">
                     <p class="item-website">${item.website_name}</p>
                     <p class="item-email">${item.email}</p> 
@@ -145,7 +145,7 @@ function displayDetails(id) {
         
         document.getElementById('name-container').innerHTML = `<h2 id="display-website-name">${entry.website_name}</h2>`;
         
-        document.getElementById('display-website-logo').src = entry.logo; 
+        document.getElementById('display-website-logo').src = "static/manager/assets/Login.png"; 
         document.getElementById('display-email').value = entry.email;      
         document.getElementById('display-username').value = entry.username; 
         document.getElementById('display-password').value = entry.password;

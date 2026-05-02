@@ -166,6 +166,11 @@ body {
   transform: scale(0.95);
 }
 
+#chat-message-submit:hover {
+  background-color: #ff6b35; 
+  color: #fdfae1;
+}
+
 .logo-and-headline {
   display: flex;
   gap: 20px;
