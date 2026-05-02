@@ -12,7 +12,6 @@
         <title>Naranji | Statistics</title>
     </head>
     <body>
-        
         <p id="cookie-msg"></p>
         <div class="app-container">
             <aside class="sidebar">
@@ -44,14 +43,40 @@
             <main class="main-content">
                 <h2 id="statistics">Statistics</h2>
                 <div id="statistics-wrapper" style="margin-left: 20px; text-align: left;">
-                    <!-- <h3 style=" font-family: Wavehaus, sans-serif; margin-top: 70px; margin-bottom: 30px; margin-left: 47px; color: #223809; font-size: 15px;">
-                        Number of Credentials/Notes
-                    </h3> -->
-
                     <div id="general_stats" style="width: 300px; margin: 0;">
                         <canvas id="vaultChart"></canvas>
-                        <canvas id="securityChart"></canvas>
+                        <!-- <canvas id="securityChart"></canvas> -->
                     </div>
+                    {% if user.is_superuser or user.role.name == "Admin" %}
+                    <div class="observation-container" style="margin-top: 20px; background: #fff; padding: 20px; border-radius: 10px; box-shadow: 0 4px 8px rgba(0,0,0,0.1); max-width: 90%;">
+                        <h3 style="color: #d9534f; border-bottom: 2px solid #d9534f; padding-bottom: 10px;">Suspicious User Observation List</h3>
+                        
+                        <table style="width: 100%; border-collapse: collapse; margin-top: 15px;">
+                            <thead>
+                                <tr style="background-color: #f8f9fa; text-align: left;">
+                                    <th style="padding: 10px; border-bottom: 2px solid #dee2e6;">User</th>
+                                    <th style="padding: 10px; border-bottom: 2px solid #dee2e6;">Role</th>
+                                    <th style="padding: 10px; border-bottom: 2px solid #dee2e6;">Action Taken</th>
+                                    <th style="padding: 10px; border-bottom: 2px solid #dee2e6;">Timestamp</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for log in suspicious_logs %}
+                                <tr style="border-bottom: 1px solid #eee;">
+                                    <td style="padding: 10px;"><strong>{{ log.user.username }}</strong></td>
+                                    <td style="padding: 10px;"><span style="color: #d9534f; font-weight: bold;">{{ log.group }}</span></td>
+                                    <td style="padding: 10px;">{{ log.action }}</td>
+                                    <td style="padding: 10px; color: #666;">{{ log.timestamp|date:"M d, Y H:i:s" }}</td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="4" style="padding: 20px; text-align: center; color: #888;">No suspicious activity detected. System status: Clear.</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% endif %}
                 </div>
             </main>
         </div>

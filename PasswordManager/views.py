@@ -20,24 +20,10 @@ from django.views.decorators.csrf import ensure_csrf_cookie
 from .service import record_user_action
 
 
-# @login_required
-# def get_credentials(request):
-#   all_credentials = Credential.objects.all()
-#   serializer = CredentialSerializer(all_credentials, many=True)
-#   return JsonResponse({"credentials": serializer.data}, safe=False)
-
-# @login_required
-# def get_notes(request):
-#   all_notes = Note.objects.all()
-#   serializer = SecuredNotesSerializer(all_notes, many=True)
-#   return JsonResponse({"notes": serializer.data}, safe=False)
-
-
 @login_required
 def get_credentials(request):
     user_credentials = Credential.objects.filter(user=request.user).order_by('-id')
     serializer = CredentialSerializer(user_credentials, many=True)
-    # Return the list directly so the JS can loop through it
     return JsonResponse(serializer.data, safe=False) 
 
 @login_required
@@ -53,9 +39,19 @@ def home(request):
 def notes_page(request):
   return render(request, 'manager/secretNotes.html')
 
-def statistics_page(request):
-  return render(request, 'manager/statistics.html')
+# def statistics_page(request):
+#   return render(request, 'manager/statistics.html')
 
+@login_required
+def statistics_page(request):
+  if not request.user.is_superuser and not (request.user.role and request.user.role.name == "Admin"):
+      return redirect('home')
+
+  suspicious_logs = UserLog.objects.filter(is_suspicious=True).order_by('-timestamp')
+
+  return render(request, 'manager/statistics.html', {
+      'suspicious_logs': suspicious_logs
+  })
 
 def login_view(request):
     if request.method == "POST":
