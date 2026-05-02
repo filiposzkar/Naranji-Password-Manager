@@ -2,7 +2,10 @@ async function renderVaultChart() {
     const response = await fetch('/api/statistics/');
     const stats = await response.json();
 
-    const ctx = document.getElementById('vaultChart').getContext('2d');
+    const canvas = document.getElementById('vaultChart');
+    if (!canvas) return;
+
+    const ctx = canvas.getContext('2d');
     new Chart(ctx, {
         type: 'pie', 
         data: {
@@ -16,14 +19,52 @@ async function renderVaultChart() {
         options: {
             responsive: true,
             plugins: {
-                legend: { position: 'bottom' }
+                legend: { position: 'bottom' },
+                title: {
+                    display: true,
+                    text: 'Credentials and Notes counter'
+                }
             }
         }
     });
 }
 
 
-renderVaultChart();
+async function renderSecurityChart() {
+    const response = await fetch('/api/security-stats/');
+    const stats = await response.json();
+
+    const ctx = document.getElementById('securityChart').getContext('2d');
+    new Chart(ctx, {
+        type: 'pie',
+        data: {
+            labels: stats.labels,
+            datasets: [{
+                label: 'System Health',
+                data: stats.values,
+                // Using the specific colors we defined in the Django view
+                backgroundColor: stats.colors || ['#a4c639', '#d9534f'], 
+                borderWidth: 1
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: {
+                legend: { position: 'bottom' },
+                title: {
+                    display: true,
+                    text: 'Security Observation Overview'
+                }
+            }
+        }
+    });
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    renderVaultChart();
+    renderSecurityChart();
+});
+
 
 
 document.addEventListener('DOMContentLoaded', () => {

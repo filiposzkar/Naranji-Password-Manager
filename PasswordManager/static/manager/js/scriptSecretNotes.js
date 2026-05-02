@@ -20,7 +20,7 @@ fetchNotes();
 
 
 let currentPage = 1;
-const itemsPerPage = 3;
+const itemsPerPage = 5;
 
 
 function renderList() {

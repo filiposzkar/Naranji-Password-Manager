@@ -1,6 +1,7 @@
 from django.db import models
 from django.conf import settings
 from django.contrib.auth.models import AbstractUser
+from django.contrib.auth.models import User
 
 
 class Permission(models.Model):
@@ -50,6 +51,15 @@ class Note(models.Model):
 
   def __str__(self):
     return self.headline
+  
+
+class UserLog(models.Model):
+  user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
+  group = models.CharField(max_length=20) # admin or user
+  action = models.TextField()
+  timestamp = models.DateTimeField(auto_now_add=True)
+  is_suspicious = models.BooleanField(default=False)
+
 
 
 

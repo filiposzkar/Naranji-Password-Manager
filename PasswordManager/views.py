@@ -9,32 +9,42 @@ from django.http import JsonResponse
 from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import csrf_exempt
 import json
-
-from .models import Credential, Note
+from .models import Credential, Note, CustomUser, UserLog
 from django.db.models import Count
-
 from django.contrib.auth import authenticate, login
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
-
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.authentication import SessionAuthentication
-
 from django.views.decorators.csrf import ensure_csrf_cookie
+from .service import record_user_action
 
 
-@csrf_exempt
+# @login_required
+# def get_credentials(request):
+#   all_credentials = Credential.objects.all()
+#   serializer = CredentialSerializer(all_credentials, many=True)
+#   return JsonResponse({"credentials": serializer.data}, safe=False)
+
+# @login_required
+# def get_notes(request):
+#   all_notes = Note.objects.all()
+#   serializer = SecuredNotesSerializer(all_notes, many=True)
+#   return JsonResponse({"notes": serializer.data}, safe=False)
+
+
+@login_required
 def get_credentials(request):
-    all_credentials = Credential.objects.all()
-    serializer = CredentialSerializer(all_credentials, many=True)
-    return JsonResponse({"credentials": serializer.data}, safe=False)
+    user_credentials = Credential.objects.filter(user=request.user).order_by('-id')
+    serializer = CredentialSerializer(user_credentials, many=True)
+    # Return the list directly so the JS can loop through it
+    return JsonResponse(serializer.data, safe=False) 
 
-
-@csrf_exempt
+@login_required
 def get_notes(request):
-    all_notes = Note.objects.all()
-    serializer = SecuredNotesSerializer(all_notes, many=True)
-    return JsonResponse({"notes": serializer.data}, safe=False)
+    user_notes = Note.objects.filter(user=request.user).order_by('-id')
+    serializer = SecuredNotesSerializer(user_notes, many=True)
+    return JsonResponse(serializer.data, safe=False)
 
 
 def home(request):
@@ -61,6 +71,7 @@ def login_view(request):
     
     return render(request, 'manager/login.html')
 
+
 @ensure_csrf_cookie
 @login_required
 def index(request):
@@ -81,7 +92,8 @@ def add_credential_view(request):
         data = json.loads(request.body)  # parsing the incoming JSON
         serializer = CredentialSerializer(data=data) # giving the data to the serializer
         if serializer.is_valid():
-          new_credential = serializer.save()  # performs the SQL insert into the database
+          new_credential = serializer.save(user=request.user)
+          record_user_action(request.user, f"Added new credential: {data.get('website_name')}")
           return JsonResponse(CredentialSerializer(new_credential).data, status=201) # returning the data as JSON
         else:
           return JsonResponse({"error": serializer.errors}, status=400)
@@ -97,19 +109,18 @@ def update_credential_view(request, cred_id):
     if request.method == "PUT":
         try:
             data = json.loads(request.body)
-
             website = data.get('website_name')
             password = data.get('password')
 
             if website == "" or password == "":
-                return JsonResponse({"error": "Fields website_name and password cannot be empty"}, status=400)
+              return JsonResponse({"error": "Fields website_name and password cannot be empty"}, status=400)
 
             updated_item = service.update_credential(cred_id, data)
-
+            record_user_action(request.user, f"Updated credential: {updated_item.website_name}")
             if updated_item:
-                return JsonResponse(updated_item, status=200)
+              return JsonResponse(updated_item, status=200)
             else:
-                return JsonResponse({"error": "Credential not found"}, status=404)
+              return JsonResponse({"error": "Credential not found"}, status=404)
 
         except Exception as e:
             return JsonResponse({"error": str(e)}, status=500)
@@ -122,7 +133,7 @@ def delete_credential_view(request, cred_id):
     if request.method == "DELETE":
         try:
             success = service.delete_credential(cred_id)
-            
+            record_user_action(request.user, f"Deleted Credential ID: {cred_id}")
             if success:
                 return JsonResponse({"message": "Deleted successfully"}, status=200)
             else:
@@ -140,7 +151,8 @@ def add_note_view(request):
         data = json.loads(request.body)  # parsing the incoming JSON
         serializer = SecuredNotesSerializer(data=data) # giving the data to the serializer
         if serializer.is_valid():
-          new_note = serializer.save()  # performs the SQL insert into the database
+          new_note = serializer.save(user=request.user)
+          record_user_action(request.user, f"Added note: {data.get('headline')}")
           return JsonResponse(SecuredNotesSerializer(new_note).data, status=201) # returning the data as JSON
         else:
           return JsonResponse({"error": serializer.errors}, status=400)
@@ -156,15 +168,13 @@ def update_note_view(request, cred_id):
     if request.method == "PUT":
         try:
             data = json.loads(request.body)
-
             headline = data.get('headline')
             bodytext = data.get('bodytext')
-
             if headline == "" or bodytext == "":
               return JsonResponse({"error": "Fields headline and bodytext cannot be empty"}, status=400)
 
             updated_item = service.update_note(cred_id, data)
-
+            record_user_action(request.user, f"Updated note: {updated_item.headline}")
             if updated_item:
                 return JsonResponse(updated_item, status=200)
             else:
@@ -175,15 +185,16 @@ def update_note_view(request, cred_id):
 
     return JsonResponse({"error": "Only PUT allowed"}, status=405)
 
+
 def delete_note_view(request, note_id):
     if request.method == "DELETE":
         try:
             success = service.delete_note(note_id)
-            
+            record_user_action(request.user, f"Deleted Note ID: {note_id}")
             if success:
-                return JsonResponse({"message": "Deleted successfully"}, status=200)
+              return JsonResponse({"message": "Deleted successfully"}, status=200)
             else:
-                return JsonResponse({"error": "Note not found"}, status=404)
+              return JsonResponse({"error": "Note not found"}, status=404)
                 
         except Exception as e:
             return JsonResponse({"error": str(e)}, status=500)
@@ -205,16 +216,16 @@ class CredentialListCreateView(APIView):  # this is for when we talk to all the 
             is_admin = True
 
       if is_admin:
-        data = Credential.objects.all()
+        data = Credential.objects.all().order_by('-id')
       else:
-        data = Credential.objects.filter(user=request.user)
+        data = Credential.objects.filter(user=request.user).order_by('-id')
 
       website_filter = request.query_params.get('website_name')
       if website_filter:
         data = data.filter(website_name__icontains=website_filter)
 
       page = int(request.query_params.get('page', 1))  # if they don't provide a page number, it returns page 1 by default; we use int because data returned by a URL is always a string
-      page_size = int(request.query_params.get('page_size', 5))  # how many items are we showing on a page (in this case 5)
+      page_size = int(request.query_params.get('page_size', 10))  # how many items are we showing on a page (in this case 5)
       start = (page - 1) * page_size # ex: if we are on page 1 -> (1 - 1) * 5 = 0, so start = 0 and end = 5 => getting items 0 through 4
       end = start + page_size
 
@@ -276,16 +287,16 @@ class NotesListCreateView(APIView):
           is_admin = True
 
     if is_admin:
-      data = Note.objects.all()
+      data = Note.objects.all().order_by('-id')
     else:
-      data = Note.objects.filter(user=request.user)
+      data = Note.objects.filter(user=request.user).order_by('-id')
 
     headline_filter = request.query_params.get('headline')
     if headline_filter:
       data = data.filter(headline__icontains=headline_filter)
 
     page = int(request.query_params.get('page', 1))
-    page_size = int(request.query_params.get('page_size', 5))
+    page_size = int(request.query_params.get('page_size', 10))
     start = (page - 1) * page_size
     end = start + page_size
 
@@ -333,13 +344,37 @@ class NotesDetailView(APIView):
 
 
 def api_statistics(request):
-    cred_count = Credential.objects.count()
-    note_count = Note.objects.count()
-    
-    return JsonResponse({
-        "labels": ["Credentials", "Notes"],
-        "values": [cred_count, note_count]
-    })
+  cred_count = Credential.objects.count()
+  note_count = Note.objects.count()
+  
+  return JsonResponse({
+      "labels": ["Credentials", "Notes"],
+      "values": [cred_count, note_count]
+  })
+
+
+def api_security_stats(request): # counting how many total logs are clean vs. flagged
+  suspicious_count = UserLog.objects.filter(is_suspicious=True).count()
+  safe_count = UserLog.objects.filter(is_suspicious=False).count()
+  
+  return JsonResponse({
+    "labels": ["Safe Actions", "Suspicious Actions"],
+    "values": [safe_count, suspicious_count],
+    "colors": ["#a4c639", "#d9534f"]
+  })
+
+
+@login_required
+def observation_list(request):  # this functions displays the suspicious events
+  if not request.user.is_superuser and not request.user.role.name == "Admin":
+    return redirect('home')
+
+  suspicious_logs = UserLog.objects.filter(is_suspicious=True).order_by('-timestamp')
+
+  return render(request, 'manager/statistics.html', {
+    'suspicious-logs': suspicious_logs
+  })
+   
 
 
 

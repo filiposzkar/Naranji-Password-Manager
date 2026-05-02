@@ -10,9 +10,10 @@ async function loadCredentialsFromServer() {
         });
         if (response.ok) {
             const data = await response.json();
-            credentials_list = data.results || data; 
+            // Use data.results if it exists (Django Rest Framework), otherwise use data
+            credentials_list = Array.isArray(data) ? data : (data.results || []);
             renderList();
-        }
+}
     } catch (error) {
         console.error("Failed to load credentials:", error);
     }
@@ -22,7 +23,7 @@ loadCredentialsFromServer();
 
 
 let currentPage = 1;
-const itemsPerPage = 3;
+const itemsPerPage = 5;
 
 
 function renderList() {
@@ -52,20 +53,6 @@ function renderList() {
 }
 
 
-// function getCookie(name) {
-//     let nameEQ = name + "=";
-//     let ca = document.cookie.split(';');  // this split the long string, to get each component separately (name, value, days)
-//     for(let i=0; i < ca.length; i++) {
-//         let c = ca[i];
-//         while (c.charAt(0) == ' ') c = c.substring(1, c.length);  // trim any white space put by the browser at the beginning of a cookie
-//         if (c.indexOf(nameEQ) == 0) return c.substring(nameEQ.length, c.length);   // indexOf() looks for a substring in a string, and because we want the name of the cookie to match the "name" parameter
-//         // we need to make sure that the substring "name" is starting on the first position of the cookies name, meaning that they are equal
-//         // we then extract the value of the cookie and return it
-//     }
-//     return null;
-// }
-
-
 function getCookie(name) {
     let cookieValue = null;
     if (document.cookie && document.cookie !== '') {
@@ -93,7 +80,7 @@ async function renderVaultChart() {
             datasets: [{
                 label: 'Vault Distribution',
                 data: stats.values,
-                backgroundColor: ['#4CAF50', '#FFC107'], // green for creds, yellow for notes
+                backgroundColor: ['#4CAF50', '#FFC107'], 
             }]
         },
         options: {
@@ -136,6 +123,7 @@ function prevPage() {
 // runs when a login credential from the list of credentials gets clicked
 function displayDetails(id) {
     // Look for the entry in your local list
+    console.log("Current list type:", typeof credentials_list, credentials_list);
     const entry = credentials_list.find(item => String(item.id) === String(id));
 
     if(entry){
@@ -252,11 +240,23 @@ async function saveNewItem() {
 
         if (response.ok) {
             const savedItem = await response.json(); 
-            credentials_list.unshift(savedItem); 
-            renderList(); 
-            displayDetails(savedItem.id); 
-            alert("Saved to Database!");
-        } else {
+            
+            // Ensure we are unshifting into an array
+            if (Array.isArray(credentials_list)) {
+                credentials_list.unshift(savedItem);
+            } else {
+                // If for some reason it's still an object, fix it or push to results
+                if (credentials_list.results) {
+                    credentials_list.results.unshift(savedItem);
+                } else {
+                    credentials_list = [savedItem];
+                }
+            }
+            
+            renderList();
+            displayDetails(savedItem.id);
+        }
+        else {
             const errorData = await response.json();
             alert("Server Error: " + (errorData.error || "Failed to save"));
         }
