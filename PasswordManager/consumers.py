@@ -3,6 +3,12 @@ from channels.generic.websocket import AsyncWebsocketConsumer
 
 class ChatConsumer(AsyncWebsocketConsumer):
   async def connect(self):  # this is the receptionsit; when a user arrives on the chat page, this function decides how to let them in
+    if self.scope["user"].is_authenticated:
+        await self.channel_layer.group_add("general", self.channel_name)
+        print("✅ CHAT CONNECTED AND ADDED TO GROUP")
+    else:
+        await self.close() # if they aren't logged in, then kick them out
+
     self.room_name = self.scope['url_route']['kwargs']['room_name']  # getting the room name from the URL (scope is like a request)
     self.room_group_name = f'chat_{self.room_name}' # creating an unique ID for the room in Redis, by appending the room name to the word "chat"
 

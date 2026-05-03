@@ -89,7 +89,6 @@ def add_credential_view(request):
         serializer = CredentialSerializer(data=data) # giving the data to the serializer
         if serializer.is_valid():
           new_credential = serializer.save(user=request.user)
-          record_user_action(request.user, f"Added new credential: {data.get('website_name')}")
           return JsonResponse(CredentialSerializer(new_credential).data, status=201) # returning the data as JSON
         else:
           return JsonResponse({"error": serializer.errors}, status=400)
@@ -112,7 +111,7 @@ def update_credential_view(request, cred_id):
               return JsonResponse({"error": "Fields website_name and password cannot be empty"}, status=400)
 
             updated_item = service.update_credential(cred_id, data)
-            record_user_action(request.user, f"Updated credential: {updated_item.website_name}")
+           
             if updated_item:
               return JsonResponse(updated_item, status=200)
             else:
@@ -129,7 +128,6 @@ def delete_credential_view(request, cred_id):
     if request.method == "DELETE":
         try:
             success = service.delete_credential(cred_id)
-            record_user_action(request.user, f"Deleted Credential ID: {cred_id}")
             if success:
                 return JsonResponse({"message": "Deleted successfully"}, status=200)
             else:
@@ -141,21 +139,38 @@ def delete_credential_view(request, cred_id):
     return JsonResponse({"error": "Only DELETE allowed"}, status=405)
 
 
+# def add_note_view(request):
+#   # raise Exception("IF YOU SEE THIS, THE CODE IS WORKING")
+#   if request.method == "POST":
+#     try:
+#         data = json.loads(request.body)  # parsing the incoming JSON
+#         serializer = SecuredNotesSerializer(data=data) # giving the data to the serializer
+#         if serializer.is_valid():
+#           new_note = serializer.save(user=request.user)
+#           print("!!! TEST: I AM ABOUT TO LOG !!!")
+#           record_user_action(request.user, f"Added note: {data.get('headline')}")
+#           return JsonResponse(SecuredNotesSerializer(new_note).data, status=201) # returning the data as JSON
+#         else:
+#           return JsonResponse({"error": serializer.errors}, status=400)
+#     except json.JSONDecodeError:
+#       return JsonResponse({"error": "Invalid JSON format"}, status=400)
+#     except Exception as e:
+#       return JsonResponse({"error": str(e)}, status=500)
+#   return JsonResponse({"error": "Only POST allowed"}, status=405)
+
+
+
 def add_note_view(request):
+  # raise Exception("IF YOU SEE THIS, THE CODE IS WORKING")
   if request.method == "POST":
-    try:
-        data = json.loads(request.body)  # parsing the incoming JSON
-        serializer = SecuredNotesSerializer(data=data) # giving the data to the serializer
-        if serializer.is_valid():
-          new_note = serializer.save(user=request.user)
-          record_user_action(request.user, f"Added note: {data.get('headline')}")
-          return JsonResponse(SecuredNotesSerializer(new_note).data, status=201) # returning the data as JSON
-        else:
-          return JsonResponse({"error": serializer.errors}, status=400)
-    except json.JSONDecodeError:
-      return JsonResponse({"error": "Invalid JSON format"}, status=400)
-    except Exception as e:
-      return JsonResponse({"error": str(e)}, status=500)
+    data = json.loads(request.body)  # parsing the incoming JSON
+    serializer = SecuredNotesSerializer(data=data) # giving the data to the serializer
+    if serializer.is_valid():
+      new_note = serializer.save(user=request.user)
+      print("!!! TEST: I AM ABOUT TO LOG !!!")
+      return JsonResponse(SecuredNotesSerializer(new_note).data, status=201) # returning the data as JSON
+    else:
+      return JsonResponse({"error": serializer.errors}, status=400)
   return JsonResponse({"error": "Only POST allowed"}, status=405)
 
 
@@ -170,15 +185,12 @@ def update_note_view(request, cred_id):
               return JsonResponse({"error": "Fields headline and bodytext cannot be empty"}, status=400)
 
             updated_item = service.update_note(cred_id, data)
-            record_user_action(request.user, f"Updated note: {updated_item.headline}")
             if updated_item:
                 return JsonResponse(updated_item, status=200)
             else:
                 return JsonResponse({"error": "Note not found"}, status=404)
-
         except Exception as e:
             return JsonResponse({"error": str(e)}, status=500)
-
     return JsonResponse({"error": "Only PUT allowed"}, status=405)
 
 
@@ -186,12 +198,10 @@ def delete_note_view(request, note_id):
     if request.method == "DELETE":
         try:
             success = service.delete_note(note_id)
-            record_user_action(request.user, f"Deleted Note ID: {note_id}")
             if success:
               return JsonResponse({"message": "Deleted successfully"}, status=200)
             else:
               return JsonResponse({"error": "Note not found"}, status=404)
-                
         except Exception as e:
             return JsonResponse({"error": str(e)}, status=500)
 
@@ -233,13 +243,18 @@ class CredentialListCreateView(APIView):  # this is for when we talk to all the 
     def post(self, request):
       serializer = CredentialSerializer(data=request.data)
       if serializer.is_valid():
-          serializer.save(user=request.user)
+          new_credential = serializer.save(user=request.user)
+          record_user_action(request.user, f"Created new credential: {new_credential}")
           return Response(serializer.data, status=status.HTTP_201_CREATED)
       return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
     
 
 
+method_decorator(csrf_exempt, name='dispatch')
 class CredentialDetailView(APIView):
+    authentication_classes = [SessionAuthentication]
+    permission_classes = [IsAuthenticated]
+
     def get(self, request, pk):
       credential = service.get_credential_by_id(pk)
       if credential is not None:
@@ -258,15 +273,20 @@ class CredentialDetailView(APIView):
       serializer = CredentialSerializer(data=request.data)
       if serializer.is_valid():
         updated_item = service.update_credential(pk, serializer.validated_data)
+        record_user_action(request.user, f"Updated credential: {updated_item.website_name}")
         return Response(CredentialSerializer(updated_item).data)
       return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
     def delete(self, request, pk):
+      credential = service.get_credential_by_id(pk)
+      credential_website = credential.website_name if credential else "Unknown"
       success = service.delete_credential(pk)
       if success:
+        record_user_action(request.user, f"Deleted Credential: {credential_website}")
         return Response(status=status.HTTP_204_NO_CONTENT)
-      return Response({"error": "Already deleted or never existed"}, status=status.HTTP_404_NOT_FOUND)    
+      return Response({"error": "Already deleted or never existed"}, status=status.HTTP_404_NOT_FOUND)  
+
     
 
 
@@ -306,12 +326,17 @@ class NotesListCreateView(APIView):
     serializer = SecuredNotesSerializer(data=request.data)
     if serializer.is_valid():
       new_note = serializer.save(user=request.user)
+      record_user_action(request.user, f"Created new note: {new_note}")
       return Response(SecuredNotesSerializer(new_note).data, status=status.HTTP_201_CREATED)
     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
   
 
 
+method_decorator(csrf_exempt, name='dispatch')
 class NotesDetailView(APIView):
+  authentication_classes = [SessionAuthentication]
+  permission_classes = [IsAuthenticated]
+
   def get(self, request, pk):
     note = service.get_note_by_id(pk)
     if note is not None:
@@ -328,13 +353,17 @@ class NotesDetailView(APIView):
     serializer = SecuredNotesSerializer(data=request.data)
     if serializer.is_valid():
       updated_item = service.update_note(pk, serializer.validated_data)
+      record_user_action(request.user, f"Updated note: {updated_item.headline}")
       return Response(SecuredNotesSerializer(updated_item).data)
     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
   
 
   def delete(self, request, pk):
+    note = service.get_note_by_id(pk)
+    note_headline = note.headline if note else "Unknown"
     success = service.delete_note(pk)
     if success:
+      record_user_action(request.user, f"Deleted Note: {note_headline}")
       return Response(status=status.HTTP_204_NO_CONTENT)
     return Response({"error": "Already deleted or never existed"}, status=status.HTTP_404_NOT_FOUND)   
 

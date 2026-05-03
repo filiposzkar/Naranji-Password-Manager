@@ -11,17 +11,30 @@ import os
 from django.core.asgi import get_asgi_application
 from channels.routing import ProtocolTypeRouter, URLRouter
 from channels.auth import AuthMiddlewareStack
+from channels.security.websocket import AllowedHostsOriginValidator
 import PasswordManager.routing
 
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "backend.settings")
 #os.environ.setdefault("DJANGO_SETTINGS_MODULE", "PasswordManager.settings")
 
-# application = get_asgi_application()
+django_asgi_app = get_asgi_application()
+
 application = ProtocolTypeRouter({
-    "http": get_asgi_application(),
-    "websocket": AuthMiddlewareStack(
-        URLRouter(
-            PasswordManager.routing.websocket_urlpatterns
+    "http": django_asgi_app,
+    "websocket": AllowedHostsOriginValidator(
+        AuthMiddlewareStack(
+            URLRouter(
+                PasswordManager.routing.websocket_urlpatterns
+            )
         )
     ),
 })
+
+# application = ProtocolTypeRouter({
+#     "http": get_asgi_application(),
+#     "websocket": AuthMiddlewareStack(
+#         URLRouter(
+#             PasswordManager.routing.websocket_urlpatterns
+#         )
+#     ),
+# })

@@ -66,33 +66,73 @@ def update_note(note_id, new_data):
   return None
 
 
+# def record_user_action(user, action_description):
+#   print(f"DEBUG: Attempting to log action for {user}: {action_description}") 
+#   user_role = user.role.name if user.role else "No Role"  # grabbing the role name from the CustomUser model
+
+#   new_log = UserLog.objects.create(  # creating the new log entry
+#     user = user,
+#     group = user_role, # GROUP_ID[ADMIN/USER] requirement
+#     action = action_description
+#   )
+#   print(f"DEBUG: Log created with ID: {new_log.id}") 
+
+#   # we need to define what a suspicious user behavior looks like
+#   # if the user performs more than 10 actions in 30 seconds => sus
+#   time_threshold = timezone.now() - timedelta(seconds=30)  
+#   recent_actions = UserLog.objects.filter(
+#     user = user,
+#     timestamp__gte = time_threshold
+#   ).count()
+
+#   if recent_actions > 5:
+#     UserLog.objects.filter(user=user).update(is_suspicious=True)
+#     return True # signaling that something is wrong
+#   return False
+
+
+
 def record_user_action(user, action_description):
-  user_role = user.role.name if user.role else "No Role"  # grabbing the role name from the CustomUser model
+    try:
+        # 2. Safety Check: Anonymous users cannot be logged in this model
+        if not user or not user.is_authenticated:
+            print("❌ LOGGING ABORTED: User is not authenticated.")
+            return False
 
-  new_log = UserLog.objects.create(  # creating the new log entry
-    user = user,
-    group = user_role, # GROUP_ID[ADMIN/USER] requirement
-    action = action_description
-  )
+        # 3. Dynamic Group Identification (Prevents crashes if role is missing)
+        group_name = "User" # Default
+        if user.is_superuser:
+            group_name = "Admin (Superuser)"
+        elif hasattr(user, 'role') and user.role:
+            group_name = user.role.name
+        
+        # 4. Create the Database Entry
+        new_log = UserLog.objects.create(
+            user=user,
+            group=group_name,
+            action=action_description,
+            is_suspicious=False  # Initial state
+        )
+        print(f"✅ LOG PERSISTED: ID {new_log.id}")
 
-  # we need to define what a suspicious user behavior looks like
-  # if the user performs more than 10 actions in 30 seconds => sus
-  time_threshold = timezone.now() - timedelta(seconds=30)  
-  recent_actions = UserLog.objects.filter(
-    user = user,
-    timestamp__gte = time_threshold
-  ).count()
+        # 5. Malvolent Behavior Detection (The 'Stealth' Logic)
+        # Check for more than 5 actions (for testing) in the last 30 seconds
+        time_window = timezone.now() - timedelta(seconds=30)
+        recent_activity_count = UserLog.objects.filter(
+            user=user,
+            timestamp__gte=time_window
+        ).count()
 
-  if recent_actions > 10:
-    UserLog.objects.filter(user=user).update(is_suspicious=True)
-    return True # signaling that something is wrong
-  return False
+        print(f"📊 RECENT ACTIVITY LEVEL: {recent_activity_count} actions/30s")
 
+        if recent_activity_count > 5:
+            # Flag ALL logs for this user as suspicious for Admin review
+            UserLog.objects.filter(user=user).update(is_suspicious=True)
+            print(f"🚨 ALERT: {user.username} FLAGGED FOR SUSPICIOUS ACTIVITY!")
+            return True # Signal that detection triggered
 
-
-
-
-
-
-
-
+    except Exception as e:
+        # This will catch missing tables, column mismatches, or logic errors
+        print(f"🔥 CRITICAL LOGGER FAILURE: {str(e)}")
+    
+    return False

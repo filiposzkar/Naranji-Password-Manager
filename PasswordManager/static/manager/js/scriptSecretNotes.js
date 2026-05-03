@@ -220,6 +220,10 @@ async function deleteItem(id) {
     try {
         const response = await fetch(`/api/notes/${id}/`, {
             method: 'DELETE',
+            headers: {
+                'X-CSRFToken': getCookie('csrftoken'),
+                'Content-Type': 'application/json'
+            }
         });
 
         if (response.ok) {
@@ -278,7 +282,10 @@ async function saveUpdate(id) {
         // sending the update to the Django Backend
         const response = await fetch(`/api/notes/${id}/`, { 
             method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCookie('csrftoken')
+            },
             body: JSON.stringify(updatedData)
         });
 

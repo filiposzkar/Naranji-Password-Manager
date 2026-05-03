@@ -282,8 +282,12 @@ async function deleteItem(id) {
         return;
     }
     try {
-        const response = await fetch(`/api/credentials/${id}/`, { // New RESTful URL
-            method: 'DELETE'
+        const response = await fetch(`/api/credentials/${id}/`, { 
+            method: 'DELETE',
+            headers: {
+                'X-CSRFToken': getCookie('csrftoken'), 
+                'Content-Type': 'application/json'
+            }
         });
 
         if (response.ok) {
@@ -362,7 +366,10 @@ async function saveUpdate(id) {
     try {
         const response = await fetch(`/api/credentials/${id}/`, { 
             method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCookie('csrftoken')
+            },
             body: JSON.stringify(updatedData)
         });
 
