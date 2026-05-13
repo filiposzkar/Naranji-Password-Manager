@@ -23,6 +23,7 @@ import base64
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 from django.conf import settings
+from django.shortcuts import get_object_or_404
 
 
 @login_required
@@ -327,6 +328,9 @@ class CredentialDetailView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request, pk):
+      if not request.user.is_authenticated:
+        return Response({"error": "Not authenticated"}, status=401)
+      print(f"DEBUG: Headers in view: {request.headers}")
       credential = service.get_credential_by_id(pk)
       if credential is not None:
         if credential.user != request.user:
@@ -345,19 +349,41 @@ class CredentialDetailView(APIView):
       return Response({"error": "Credential not found"}, status=status.HTTP_404_NOT_FOUND)
     
 
-    def put(self, request, pk): # updating a credential
-      # checking if the credential to be updated exists
-      existing_item = service.get_credential_by_id(pk)
-      if existing_item is None:
-        return Response({"error": "Not found"}, status=status.HTTP_404_NOT_FOUND)
+    # def put(self, request, pk): # updating a credential
+    #   # checking if the credential to be updated exists
+    #   existing_item = service.get_credential_by_id(pk)
+    #   if existing_item is None:
+    #     return Response({"error": "Not found"}, status=status.HTTP_404_NOT_FOUND)
       
-      # validating the new data
-      serializer = CredentialSerializer(data=request.data)
+    #   # validating the new data
+    #   serializer = CredentialSerializer(data=request.data)
+    #   if serializer.is_valid():
+    #     updated_item = service.update_credential(pk, serializer.validated_data)
+    #     record_user_action(request.user, f"Updated credential: {updated_item.website_name}")
+    #     return Response(CredentialSerializer(updated_item).data)
+    #   return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    
+
+    def put(self, request, pk):
+      credential = get_object_or_404(Credential, pk=pk, user=request.user)
+      master_key = request.headers.get('X-Master-Key')
+      
+      if not master_key:
+        return Response({"error": "Master Key required"}, status=400)
+
+      serializer = CredentialSerializer(credential, data=request.data)
       if serializer.is_valid():
-        updated_item = service.update_credential(pk, serializer.validated_data)
-        record_user_action(request.user, f"Updated credential: {updated_item.website_name}")
-        return Response(CredentialSerializer(updated_item).data)
-      return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+          try:
+              f = Fernet(get_crypto_key(master_key))
+              plain_password = serializer.validated_data['password']
+              encrypted_password = f.encrypt(plain_password.encode()).decode()
+              
+              # Save with the encrypted version
+              serializer.save(password=encrypted_password)
+              return Response(serializer.data)
+          except Exception as e:
+              return Response({"error": str(e)}, status=500)
+      return Response(serializer.errors, status=400)
 
 
     def delete(self, request, pk):
@@ -440,18 +466,41 @@ class NotesDetailView(APIView):
   authentication_classes = [SessionAuthentication]
   permission_classes = [IsAuthenticated]
 
+  # def get(self, request, pk):
+  #   note = service.get_note_by_id(pk)
+  #   if note is None:
+  #     return Response({"error": "Note not found"}, status=404)
+
+  #   master_key = request.headers.get('X-Master-Key')
+  #   if master_key and note.bodytext.startswith('gAAAAA'):
+  #     try:
+  #       f = Fernet(get_crypto_key(master_key))
+  #       note.bodytext = f.decrypt(note.bodytext.encode()).decode()
+  #     except:
+  #       return Response({"error": "Decryption failed"}, status=401)
+
+  #   serializer = SecuredNotesSerializer(note)
+  #   return Response(serializer.data)
+  
   def get(self, request, pk):
+    print(f"DEBUG: Headers in view: {request.headers}")
     note = service.get_note_by_id(pk)
     if note is None:
-      return Response({"error": "Note not found"}, status=404)
+        return Response({"error": "Note not found"}, status=404)
 
     master_key = request.headers.get('X-Master-Key')
     if master_key and note.bodytext.startswith('gAAAAA'):
-      try:
-        f = Fernet(get_crypto_key(master_key))
-        note.bodytext = f.decrypt(note.bodytext.encode()).decode()
-      except:
-        return Response({"error": "Decryption failed"}, status=401)
+        try:
+            f = Fernet(get_crypto_key(master_key))
+            # --- WRAP THIS PART ---
+            try:
+                note.bodytext = f.decrypt(note.bodytext.encode()).decode()
+            except Exception:
+                # Decryption failed (bad token), but we still want 
+                # to return the object (it will just be gibberish)
+                pass
+        except Exception:
+            return Response({"error": "Decryption setup failed"}, status=401)
 
     serializer = SecuredNotesSerializer(note)
     return Response(serializer.data)
