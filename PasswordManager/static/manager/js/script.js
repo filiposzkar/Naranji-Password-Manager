@@ -1,19 +1,23 @@
 let credentials_list = []; 
-//const BASE_URL = "http://192.168.1.15:8000";
+let userMasterKey = "";
 
 async function loadCredentialsFromServer() {
-    //const response = await fetch(`${BASE_URL}/api/credentials/`);
     try {
         const response = await fetch('/api/credentials/', {
             method: 'GET',
+            headers: {
+                'X-Master-Key': userMasterKey   // sending the key we got from the prompt
+            },
             credentials: 'include' // important to show only this user's data
         });
         if (response.ok) {
             const data = await response.json();
-            // Use data.results if it exists (Django Rest Framework), otherwise use data
             credentials_list = Array.isArray(data) ? data : (data.results || []);
             renderList();
-}
+        }
+        else if (response.status == 400) {
+            alert("Master Key is required to view credentials!");
+        }
     } catch (error) {
         console.error("Failed to load credentials:", error);
     }
@@ -188,6 +192,7 @@ async function saveNewItem() {
     const username = document.getElementById('display-username').value;
     const password = document.getElementById('display-password').value;
     const url = document.getElementById('display-URL').value;
+
     const token = getCookie('csrftoken');
     console.log("My CSRF Token is:", token);
 
@@ -217,6 +222,11 @@ async function saveNewItem() {
         return;
     }
 
+    if(userMasterKey === null || userMasterKey === "") {
+        userMasterKey = prompt("Please enter your Master Key to encrypt this password!");
+        if (!userMasterKey) return;
+    }
+
     const newEntry = {
         website_name: name,
         url: url,     
@@ -232,7 +242,8 @@ async function saveNewItem() {
             headers: {
                 'Content-Type': 'application/json',
                 'X-CSRFToken': getCookie('csrftoken'),
-                'X-Requested-With': 'XMLHttpRequest'
+                'X-Requested-With': 'XMLHttpRequest',
+                'X-Master-Key': userMasterKey
             },
             body: JSON.stringify(newEntry),
             credentials: 'include'
@@ -240,7 +251,8 @@ async function saveNewItem() {
 
         if (response.ok) {
             const savedItem = await response.json(); 
-            
+            alert("Saved and encrypted!");
+
             // Ensure we are unshifting into an array
             if (Array.isArray(credentials_list)) {
                 credentials_list.unshift(savedItem);
@@ -515,3 +527,40 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 });
+
+
+window.addEventListener('DOMContentLoaded', (event) => {
+    if(window.location.pathname.includes('credentials') || document.getElementById('add-item-button')) {
+        askForMasterKey();
+    }
+});
+
+// function askForMasterKey() {
+//     userMasterKey = prompt("Welcome back! Please enter your Master Key to unlock your vault\n\n" + 
+//         "NOTE: If this is your first time, the key you type now will be used to encrypt your vault. " +
+//         "If you have already saved credentials, you must use the same key you used before!"
+//     );
+
+//     if(userMasterKey) {
+//         alert("Vault remains locked. You won't be able to see or save credentials!");
+//     }
+//     else{
+//         console.log("Vault Unlocked!");
+//         loadCredentialsFromServer();
+//     }
+// }
+
+
+function askForMasterKey() {
+    let input = prompt("Welcome back! Please enter your Master Key to unlock your vault:");
+    
+    // Check if they clicked 'Anulează' (null) or entered nothing ("")
+    if (input === null || input.trim() === "") {
+        userMasterKey = ""; // Keep it empty
+        alert("Vault remains locked. You won't be able to see or save credentials!");
+    } else {
+        userMasterKey = input; // Set the global variable
+        console.log("Vault Unlocked!");
+        loadCredentialsFromServer(); // Trigger the load now that we have the key
+    }
+}

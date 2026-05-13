@@ -44,6 +44,7 @@ INSTALLED_APPS = [
     "django.contrib.staticfiles",
     "rest_framework",
     'corsheaders',
+    'sslserver',
 ]
 
 MIDDLEWARE = [
@@ -141,3 +142,9 @@ CHANNEL_LAYERS = {
         },
     },
 }
+
+
+SESSION_COOKIE_SECURE = True
+CSRF_COOKIE_SECURE = True
+SESSION_EXPIRE_AT_BROWSER_CLOSE = True
+SESSION_COOKIE_AGE = 600  # Logout after 10 minutes of inactivity

@@ -9,7 +9,7 @@ from django.http import JsonResponse
 from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import csrf_exempt
 import json
-from .models import Credential, Note, CustomUser, UserLog
+from .models import Credential, Note, CustomUser, UserLog, Role
 from django.db.models import Count
 from django.contrib.auth import authenticate, login
 from django.contrib.auth.decorators import login_required
@@ -18,6 +18,11 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.authentication import SessionAuthentication
 from django.views.decorators.csrf import ensure_csrf_cookie
 from .service import record_user_action
+from cryptography.fernet import Fernet
+import base64
+from cryptography.hazmat.primitives import hashes
+from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
+from django.conf import settings
 
 
 @login_required
@@ -68,6 +73,35 @@ def login_view(request):
     return render(request, 'manager/login.html')
 
 
+def register_view(request):
+  if request.method == "POST":
+    try:
+      data = json.loads(request.body)
+      username = data.get('username')
+      email = data.get('email')
+      password = data.get('password')
+
+      if CustomUser.objects.filter(username=username).exists(): # validation
+        return JsonResponse({"error": "Username already exists"}, status=400)
+      
+      default_role = Role.objects.filter(name="Normal User").first()
+
+      new_user = CustomUser.objects.create_user(
+        username=username,
+        email=email,
+        password=password,
+        role=default_role
+      )
+      return JsonResponse({"message": "Registration successful!"}, status=201)
+
+    except Exception as e:
+      return JsonResponse({"error": str(e)}, status=500)
+  
+  return render(request, 'manager/signUp.html')
+      
+
+
+
 @ensure_csrf_cookie
 @login_required
 def index(request):
@@ -82,16 +116,44 @@ def chat_view(request):
   return render(request, 'manager/chat.html')    
 
 
+def get_crypto_key(master_key_string):  # turns the user's master key string into a 32-byte URL-safe base64 key
+  password = master_key_string.encode()
+
+  # A 'salt' is used to ensure the same password results in different keys elsewhere.
+  salt = b'lab_project_salt_123'
+  kdf = PBKDF2HMAC(
+    algorithm=hashes.SHA256(),
+    length=32,
+    salt=salt,
+    iterations=100000,
+  )
+  return base64.urlsafe_b64encode(kdf.derive(password))
+
+
 def add_credential_view(request):
   if request.method == "POST":
     try:
+        master_key = request.headers.get('X-Master-Key')  # extracting the master key from the custom header
+        if not master_key:
+          return JsonResponse({"error": "Master key is required for encryption"}, status=400)
+        
         data = json.loads(request.body)  # parsing the incoming JSON
+
+        # encrypting the password
+        raw_password = data.get('password')
+        if raw_password:
+          key = get_crypto_key(master_key)
+          f = Fernet(key)
+          encrypted_password = f.encrypt(raw_password.encode()).decode()
+          data['password'] = encrypted_password
+
         serializer = CredentialSerializer(data=data) # giving the data to the serializer
         if serializer.is_valid():
           new_credential = serializer.save(user=request.user)
           return JsonResponse(CredentialSerializer(new_credential).data, status=201) # returning the data as JSON
         else:
           return JsonResponse({"error": serializer.errors}, status=400)
+        
     except json.JSONDecodeError:
       return JsonResponse({"error": "Invalid JSON format"}, status=400)
     except Exception as e:
@@ -214,17 +276,7 @@ class CredentialListCreateView(APIView):  # this is for when we talk to all the 
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
-      is_admin = False
-      if request.user.is_superuser:
-        is_admin = True
-      elif hasattr(request.user, 'role') and request.user.role is not None:
-        if request.user.role.name == "Admin":
-            is_admin = True
-
-      if is_admin:
-        data = Credential.objects.all().order_by('-id')
-      else:
-        data = Credential.objects.filter(user=request.user).order_by('-id')
+      data = Credential.objects.filter(user=request.user).order_by('-id')
 
       website_filter = request.query_params.get('website_name')
       if website_filter:
@@ -237,15 +289,54 @@ class CredentialListCreateView(APIView):  # this is for when we talk to all the 
 
       paginated_data = data[start:end]  # getting only the elements from the list between the start and end positions
 
+      # Decryption step
+      master_key = request.headers.get('X-Master-Key')
+      if master_key:
+        try:
+          f = Fernet(get_crypto_key(master_key))
+          for item in paginated_data:
+            if item.password.startswith('gAAAAA'):
+                decrypted_val = f.decrypt(item.password.encode()).decode()
+                item.password = decrypted_val
+
+        
+        except Exception as e:
+          print(f"Decryption error: {e}") 
+          return Response({"error": "Invalid Master Key!"}, status=401)
+      
       serializer = CredentialSerializer(paginated_data, many=True) # since JavaScript and Python cannot communicate directly, we need a serializer, which converts the Python objects into JSON; many = True is indicating that we are giving a list of elements, not just one
       return Response({"count": data.count(), "results": serializer.data}) # count shows how many credentials we have in the list of credentials, results shows what credentials we have on a single page
     
+    
     def post(self, request):
+      master_key = request.headers.get('X-Master-Key')
+      if not master_key:
+        return Response({"error": "Master Key required for encryption"}, status=400)
+
       serializer = CredentialSerializer(data=request.data)
       if serializer.is_valid():
-          new_credential = serializer.save(user=request.user)
+        try:
+          # encrypting the password before it hits the database
+          crypto_key = get_crypto_key(master_key)
+          f = Fernet(crypto_key)
+          
+          # getting the plain text from the serializer's data
+          plain_password = serializer.validated_data['password']
+          encrypted_password = f.encrypt(plain_password.encode()).decode()
+
+          # overwriting the password with the encrypted version during save
+          new_credential = serializer.save(
+            user=request.user,
+            password = encrypted_password
+          )
+          new_credential.password = plain_password
+          response_serializer = CredentialSerializer(new_credential)
           record_user_action(request.user, f"Created new credential: {new_credential}")
           return Response(serializer.data, status=status.HTTP_201_CREATED)
+      
+        except Exception as e:
+          return Response({"error": f"Encryption failed: {str(e)}"}, status=500)
+        
       return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
     
 
@@ -258,6 +349,17 @@ class CredentialDetailView(APIView):
     def get(self, request, pk):
       credential = service.get_credential_by_id(pk)
       if credential is not None:
+        if credential.user != request.user:
+          return Response({"error": "Unauthorized"}, status=403)
+
+        master_key = request.headers.get('X-Master-Key')
+        if master_key:
+          try:
+            f = Fernet(get_crypto_key(master_key))
+            credential.password = f.decrypt(credential.password.encode()).decode()
+          except Exception:
+            return Response({"error": "Decryption failed"}, status=401)
+
         serializer = CredentialSerializer(credential)
         return Response(serializer.data)
       return Response({"error": "Credential not found"}, status=status.HTTP_404_NOT_FOUND)

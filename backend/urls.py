@@ -36,6 +36,7 @@ urlpatterns = [
     path('api/security-stats/', views.api_security_stats, name='api_security_stats'),
 
     path('login/', views.login_view, name='login_view'),
+    path('register/', views.register_view, name='register_view'),
     path('chat/', views.chat_view, name='chat'),
 ]
 

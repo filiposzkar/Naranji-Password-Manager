@@ -5,14 +5,13 @@
         <meta charset="UTF-8">
         <meta http-equiv="X-UA-Compatible" content="IE=edge">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <link rel="stylesheet" href="signUpStyles.css">
-        <script src="script.js" defer></script>
+        <link rel="stylesheet" href="{% static 'manager/css/signUpStyles.css' %}">  
+        <script src="{% static 'manager/js/scriptSignUp.js' %}" defer></script> 
         <title>Naranji | Sign Up</title>
     </head>
     <body>
         <div class="sign-up-form">
-            
-            <img id="NaranjiLogo" src="NaranjiLogo.png">
+            <img id="NaranjiLogo" src="{% static 'manager/assets/NaranjiLogo.png' %}">
             <h1 id="Naranji">Naranji</h1>
             <p id="create-account">Create your acccount</p>
             
@@ -33,9 +32,9 @@
                 </div>
             </div>
             
-            <a href="SecretKey.html">
-                <button id="sign-up-button">Sign Up</button>
-            </a>
+            
+            <button id="sign-up-button" onclick=handleSignUp()>Sign Up</button>
+            
             
             <p id="already-have-account">
                 Already have an account? <a href="login.html" id="login-link">Log In</a>
