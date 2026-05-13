@@ -2,6 +2,9 @@ let credentials_list = [];
 let userMasterKey = "";
 
 async function loadCredentialsFromServer() {
+    if (!userMasterKey) {
+        userMasterKey = sessionStorage.getItem('master_key') || "";
+    }
     try {
         const response = await fetch('/api/credentials/', {
             method: 'GET',
@@ -380,7 +383,8 @@ async function saveUpdate(id) {
             method: 'PUT',
             headers: { 
                 'Content-Type': 'application/json',
-                'X-CSRFToken': getCookie('csrftoken')
+                'X-CSRFToken': getCookie('csrftoken'),
+                'X-Master-Key': userMasterKey
             },
             body: JSON.stringify(updatedData)
         });
@@ -535,32 +539,16 @@ window.addEventListener('DOMContentLoaded', (event) => {
     }
 });
 
-// function askForMasterKey() {
-//     userMasterKey = prompt("Welcome back! Please enter your Master Key to unlock your vault\n\n" + 
-//         "NOTE: If this is your first time, the key you type now will be used to encrypt your vault. " +
-//         "If you have already saved credentials, you must use the same key you used before!"
-//     );
-
-//     if(userMasterKey) {
-//         alert("Vault remains locked. You won't be able to see or save credentials!");
-//     }
-//     else{
-//         console.log("Vault Unlocked!");
-//         loadCredentialsFromServer();
-//     }
-// }
-
-
 function askForMasterKey() {
     let input = prompt("Welcome back! Please enter your Master Key to unlock your vault:");
     
-    // Check if they clicked 'Anulează' (null) or entered nothing ("")
     if (input === null || input.trim() === "") {
         userMasterKey = ""; // Keep it empty
         alert("Vault remains locked. You won't be able to see or save credentials!");
     } else {
-        userMasterKey = input; // Set the global variable
+        userMasterKey = input; 
+        sessionStorage.setItem('master_key', input);
         console.log("Vault Unlocked!");
-        loadCredentialsFromServer(); // Trigger the load now that we have the key
+        loadCredentialsFromServer(); 
     }
 }

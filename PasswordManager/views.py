@@ -164,23 +164,23 @@ def add_credential_view(request):
 
 def update_credential_view(request, cred_id):
     if request.method == "PUT":
-        try:
-            data = json.loads(request.body)
-            website = data.get('website_name')
-            password = data.get('password')
+      try:
+          data = json.loads(request.body)
+          website = data.get('website_name')
+          password = data.get('password')
 
-            if website == "" or password == "":
-              return JsonResponse({"error": "Fields website_name and password cannot be empty"}, status=400)
+          if website == "" or password == "":
+            return JsonResponse({"error": "Fields website_name and password cannot be empty"}, status=400)
 
-            updated_item = service.update_credential(cred_id, data)
-           
-            if updated_item:
-              return JsonResponse(updated_item, status=200)
-            else:
-              return JsonResponse({"error": "Credential not found"}, status=404)
+          updated_item = service.update_credential(cred_id, data)
+          
+          if updated_item:
+            return JsonResponse(updated_item, status=200)
+          else:
+            return JsonResponse({"error": "Credential not found"}, status=404)
 
-        except Exception as e:
-            return JsonResponse({"error": str(e)}, status=500)
+      except Exception as e:
+          return JsonResponse({"error": str(e)}, status=500)
 
     return JsonResponse({"error": "Only PUT allowed"}, status=405)
 
@@ -199,26 +199,6 @@ def delete_credential_view(request, cred_id):
             return JsonResponse({"error": str(e)}, status=500)
 
     return JsonResponse({"error": "Only DELETE allowed"}, status=405)
-
-
-# def add_note_view(request):
-#   # raise Exception("IF YOU SEE THIS, THE CODE IS WORKING")
-#   if request.method == "POST":
-#     try:
-#         data = json.loads(request.body)  # parsing the incoming JSON
-#         serializer = SecuredNotesSerializer(data=data) # giving the data to the serializer
-#         if serializer.is_valid():
-#           new_note = serializer.save(user=request.user)
-#           print("!!! TEST: I AM ABOUT TO LOG !!!")
-#           record_user_action(request.user, f"Added note: {data.get('headline')}")
-#           return JsonResponse(SecuredNotesSerializer(new_note).data, status=201) # returning the data as JSON
-#         else:
-#           return JsonResponse({"error": serializer.errors}, status=400)
-#     except json.JSONDecodeError:
-#       return JsonResponse({"error": "Invalid JSON format"}, status=400)
-#     except Exception as e:
-#       return JsonResponse({"error": str(e)}, status=500)
-#   return JsonResponse({"error": "Only POST allowed"}, status=405)
 
 
 
@@ -397,17 +377,7 @@ class NotesListCreateView(APIView):
   permission_classes = [IsAuthenticated]
 
   def get(self, request):
-    is_admin = False
-    if request.user.is_superuser:
-      is_admin = True
-    elif hasattr(request.user, 'role') and request.user.role is not None:
-      if request.user.role.name == "Admin":
-          is_admin = True
-
-    if is_admin:
-      data = Note.objects.all().order_by('-id')
-    else:
-      data = Note.objects.filter(user=request.user).order_by('-id')
+    data = Note.objects.filter(user=request.user).order_by('-id')
 
     headline_filter = request.query_params.get('headline')
     if headline_filter:
@@ -420,16 +390,47 @@ class NotesListCreateView(APIView):
 
     paginated_data = data[start:end]
 
+    master_key = request.headers.get('X-Master-Key')
+    if master_key:
+      try:
+        f = Fernet(get_crypto_key(master_key))
+        for note in paginated_data:
+          if note.bodytext.startswith('gAAAAA'):
+            decrypted_val = f.decrypt(note.bodytext.encode()).decode()
+            note.bodytext = decrypted_val
+      except Exception as e:
+        print(f"Decryption error: {e}")
+        return Response({"error": "Invalid Master Key!"}, status=401)
+
     serializer = SecuredNotesSerializer(paginated_data, many=True)
     return Response({"count": data.count(), "results": serializer.data})
   
 
+
   def post(self, request):
+    master_key = request.headers.get('X-Master-Key')
+    if not master_key:
+      return Response({"error": "Master Key required"}, status=400)
+    
     serializer = SecuredNotesSerializer(data=request.data)
     if serializer.is_valid():
-      new_note = serializer.save(user=request.user)
-      record_user_action(request.user, f"Created new note: {new_note}")
-      return Response(SecuredNotesSerializer(new_note).data, status=status.HTTP_201_CREATED)
+      try:
+        crypto_key = get_crypto_key(master_key)
+        f = Fernet(crypto_key)
+        
+        plain_content = serializer.validated_data['bodytext']
+        encrypted_content = f.encrypt(plain_content.encode()).decode()
+
+        new_note = serializer.save(user=request.user, bodytext=encrypted_content)
+        
+        new_note.bodytext = plain_content
+        response_serializer = SecuredNotesSerializer(new_note)
+
+        record_user_action(request.user, f"Created new note: {new_note}")
+        return Response(response_serializer.data, status=status.HTTP_201_CREATED)
+      
+      except Exception as e:
+        return Response({"error": f"Encryption failed: {str(e)}"}, status=500)
     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
   
 
@@ -441,22 +442,49 @@ class NotesDetailView(APIView):
 
   def get(self, request, pk):
     note = service.get_note_by_id(pk)
-    if note is not None:
-      serializer = SecuredNotesSerializer(note)
-      return Response(serializer.data)
-    return Response({"error": "Note not found"}, status=status.HTTP_404_NOT_FOUND)
+    if note is None:
+      return Response({"error": "Note not found"}, status=404)
+
+    master_key = request.headers.get('X-Master-Key')
+    if master_key and note.bodytext.startswith('gAAAAA'):
+      try:
+        f = Fernet(get_crypto_key(master_key))
+        note.bodytext = f.decrypt(note.bodytext.encode()).decode()
+      except:
+        return Response({"error": "Decryption failed"}, status=401)
+
+    serializer = SecuredNotesSerializer(note)
+    return Response(serializer.data)
 
 
   def put(self, request, pk):
+    master_key = request.headers.get('X-Master-Key')
+    if not master_key:
+        return Response({"error": "Master Key required"}, status=400)
+
     existing_item = service.get_note_by_id(pk)
     if existing_item is None:
-      return Response({"error": "Not found"}, status=status.HTTP_404_NOT_FOUND)
+        return Response({"error": "Not found"}, status=404)
     
     serializer = SecuredNotesSerializer(data=request.data)
     if serializer.is_valid():
-      updated_item = service.update_note(pk, serializer.validated_data)
-      record_user_action(request.user, f"Updated note: {updated_item.headline}")
-      return Response(SecuredNotesSerializer(updated_item).data)
+      try:
+        f = Fernet(get_crypto_key(master_key))
+        plain_content = serializer.validated_data['bodytext']
+        encrypted_content = f.encrypt(plain_content.encode()).decode()
+
+        validated_data = serializer.validated_data
+        validated_data['bodytext'] = encrypted_content
+        
+        updated_item = service.update_note(pk, validated_data)
+        
+        updated_item.bodytext = plain_content
+        record_user_action(request.user, f"Updated note: {updated_item.headline}")
+        return Response(SecuredNotesSerializer(updated_item).data)
+      
+      except Exception as e:
+        return Response({"error": str(e)}, status=500)
+            
     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
   
 

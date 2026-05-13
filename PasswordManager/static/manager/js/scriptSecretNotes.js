@@ -1,15 +1,25 @@
 let notes_list = [];
+let userMasterKey = "";
+
 
 async function fetchNotes() {
+    if (!userMasterKey) {
+        userMasterKey = sessionStorage.getItem('master_key') || "";
+    }
     try {
         const response = await fetch('/api/notes/', {
             method: 'GET',
-            credentials: 'include' // important to show only this user's data
+            headers: {
+                'X-Master-Key': userMasterKey 
+            },
+            credentials: 'include'
         });
         if (response.ok) {
             const data = await response.json();
-            notes_list = data.results || data
+            notes_list = data.results || data;
             renderList(); 
+        } else if (response.status === 401) {
+            alert("Master Key is invalid or missing for Notes!");
         }
     } catch (error) {
         console.error("Error fetching notes:", error);
@@ -177,7 +187,8 @@ async function saveNewItem() {
             headers: {
                 'Content-Type': 'application/json',
                 'X-CSRFToken': getCookie('csrftoken'),
-                'X-Requested-With': 'XMLHttpRequest'
+                'X-Requested-With': 'XMLHttpRequest',
+                'X-Master-Key': userMasterKey
             },
             body: JSON.stringify(noteData),
             credentials: 'include'
@@ -284,7 +295,8 @@ async function saveUpdate(id) {
             method: 'PUT',
             headers: { 
                 'Content-Type': 'application/json',
-                'X-CSRFToken': getCookie('csrftoken')
+                'X-CSRFToken': getCookie('csrftoken'),
+                'X-Master-Key': userMasterKey
             },
             body: JSON.stringify(updatedData)
         });
@@ -434,3 +446,23 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 });
+
+window.addEventListener('DOMContentLoaded', (event) => {
+    if(window.location.pathname.includes('notes') || document.getElementById('add-item-button')) {
+        askForMasterKey();
+    }
+});
+
+function askForMasterKey() {
+    let input = prompt("Welcome back! Please enter your Master Key to unlock your vault:");
+
+    if (input === null || input.trim() === "") {
+        userMasterKey = ""; // Keep it empty
+        alert("Vault remains locked. You won't be able to see or save credentials!");
+    } else {
+        userMasterKey = input; 
+        sessionStorage.setItem('master_key', input);
+        console.log("Vault Unlocked!");
+        fetchNotes();
+    }
+}
