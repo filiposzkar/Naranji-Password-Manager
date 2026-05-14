@@ -66,7 +66,7 @@ def login_view(request):
 
       user = authenticate(request, username=u, password=p) # Django checks the hashed password automatically
       if user is not None:
-        login(request, user)
+        login(request, user)    # the session is created
         return redirect('home') # sending the user to the credentials list
       else:
          messages.error(request, "Invalid username or password!")
@@ -118,17 +118,16 @@ def chat_view(request):
 
 
 def get_crypto_key(master_key_string):  # turns the user's master key string into a 32-byte URL-safe base64 key
-  password = master_key_string.encode()
+  password = master_key_string.encode() # converting the password into a byte representation
 
-  # A 'salt' is used to ensure the same password results in different keys elsewhere.
-  salt = b'lab_project_salt_123'
+  salt = b'lab_project_salt_123'  # a 'salt' is random data added to the password before it's hashed
   kdf = PBKDF2HMAC(
-    algorithm=hashes.SHA256(),
-    length=32,
+    algorithm=hashes.SHA256(),  # cryptographic hash 
+    length=32,                  # Fernet requires a key that is exactly 32-bytes long
     salt=salt,
-    iterations=100000,
+    iterations=100000,          # run the hash process 100000 times, to make the password as random as possible 
   )
-  return base64.urlsafe_b64encode(kdf.derive(password))
+  return base64.urlsafe_b64encode(kdf.derive(password))  # derive() produces those 100000 rounds of math and the 32-bytes 
 
 
 def add_credential_view(request):
@@ -313,7 +312,7 @@ class CredentialListCreateView(APIView):  # this is for when we talk to all the 
           new_credential.password = plain_password
           response_serializer = CredentialSerializer(new_credential)
           record_user_action(request.user, f"Created new credential: {new_credential}")
-          return Response(serializer.data, status=status.HTTP_201_CREATED)
+          return Response(response_serializer.data, status=status.HTTP_201_CREATED)
       
         except Exception as e:
           return Response({"error": f"Encryption failed: {str(e)}"}, status=500)
@@ -348,22 +347,6 @@ class CredentialDetailView(APIView):
         return Response(serializer.data)
       return Response({"error": "Credential not found"}, status=status.HTTP_404_NOT_FOUND)
     
-
-    # def put(self, request, pk): # updating a credential
-    #   # checking if the credential to be updated exists
-    #   existing_item = service.get_credential_by_id(pk)
-    #   if existing_item is None:
-    #     return Response({"error": "Not found"}, status=status.HTTP_404_NOT_FOUND)
-      
-    #   # validating the new data
-    #   serializer = CredentialSerializer(data=request.data)
-    #   if serializer.is_valid():
-    #     updated_item = service.update_credential(pk, serializer.validated_data)
-    #     record_user_action(request.user, f"Updated credential: {updated_item.website_name}")
-    #     return Response(CredentialSerializer(updated_item).data)
-    #   return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-    
-
     def put(self, request, pk):
       credential = get_object_or_404(Credential, pk=pk, user=request.user)
       master_key = request.headers.get('X-Master-Key')
@@ -466,22 +449,6 @@ class NotesDetailView(APIView):
   authentication_classes = [SessionAuthentication]
   permission_classes = [IsAuthenticated]
 
-  # def get(self, request, pk):
-  #   note = service.get_note_by_id(pk)
-  #   if note is None:
-  #     return Response({"error": "Note not found"}, status=404)
-
-  #   master_key = request.headers.get('X-Master-Key')
-  #   if master_key and note.bodytext.startswith('gAAAAA'):
-  #     try:
-  #       f = Fernet(get_crypto_key(master_key))
-  #       note.bodytext = f.decrypt(note.bodytext.encode()).decode()
-  #     except:
-  #       return Response({"error": "Decryption failed"}, status=401)
-
-  #   serializer = SecuredNotesSerializer(note)
-  #   return Response(serializer.data)
-  
   def get(self, request, pk):
     print(f"DEBUG: Headers in view: {request.headers}")
     note = service.get_note_by_id(pk)
@@ -492,12 +459,9 @@ class NotesDetailView(APIView):
     if master_key and note.bodytext.startswith('gAAAAA'):
         try:
             f = Fernet(get_crypto_key(master_key))
-            # --- WRAP THIS PART ---
             try:
                 note.bodytext = f.decrypt(note.bodytext.encode()).decode()
             except Exception:
-                # Decryption failed (bad token), but we still want 
-                # to return the object (it will just be gibberish)
                 pass
         except Exception:
             return Response({"error": "Decryption setup failed"}, status=401)
