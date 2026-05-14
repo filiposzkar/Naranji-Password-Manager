@@ -38,5 +38,9 @@ urlpatterns = [
     path('login/', views.login_view, name='login_view'),
     path('register/', views.register_view, name='register_view'),
     path('chat/', views.chat_view, name='chat'),
+
+    path('mfa/enable/', views.EnableMFAView.as_view(), name='mfa-enable'),
+    path('mfa/verify/', views.VerifyMFAView.as_view(), name='mfa-verify'),
+    path('login/verify-mfa/', views.verify_login_mfa, name='verify-login-mfa'),
 ]
 

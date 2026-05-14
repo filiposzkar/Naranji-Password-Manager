@@ -24,6 +24,10 @@ from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 from django.conf import settings
 from django.shortcuts import get_object_or_404
+import pyotp
+import qrcode
+import io
+from rest_framework.decorators import api_view
 
 
 @login_required
@@ -59,19 +63,50 @@ def statistics_page(request):
       'suspicious_logs': suspicious_logs
   })
 
-def login_view(request):
-    if request.method == "POST":
-      u = request.POST.get('username')
-      p = request.POST.get('password')
 
-      user = authenticate(request, username=u, password=p) # Django checks the hashed password automatically
-      if user is not None:
-        login(request, user)    # the session is created
-        return redirect('home') # sending the user to the credentials list
-      else:
-         messages.error(request, "Invalid username or password!")
-    
+@api_view(['GET', 'POST'])
+def login_view(request):
+
+  if request.method == 'GET':
     return render(request, 'manager/login.html')
+  
+  username = request.data.get('username')
+  password = request.data.get('password')
+  
+  user = authenticate(request, username=username, password=password)
+  
+  if user is not None:
+    if user.is_mfa_enabled:
+      return Response({
+          "mfa_required": True,
+          "username": user.username 
+      }, status=200)
+    
+    login(request, user)
+    return Response({"mfa_required": False}, status=200)
+
+  return Response({"error": "Invalid username or password"}, status=401)
+
+
+@api_view(['POST'])
+def verify_login_mfa(request):
+    username = request.data.get('username')
+    code = request.data.get('code')
+    
+    try:
+        from .models import CustomUser
+        user = CustomUser.objects.get(username=username)
+        
+        totp = pyotp.TOTP(user.mfa_secret)
+        if totp.verify(code):
+            login(request, user) # Success! Start the session
+            return Response({"message": "Authorized"}, status=200)
+        else:
+            return Response({"error": "Invalid MFA code"}, status=401)
+            
+    except CustomUser.DoesNotExist:
+        return Response({"error": "User not found"}, status=404)
+
 
 
 def register_view(request):
@@ -541,6 +576,68 @@ def observation_list(request):  # this functions displays the suspicious events
   return render(request, 'manager/statistics.html', {
     'suspicious-logs': suspicious_logs
   })
+
+
+
+class EnableMFAView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        user = request.user
+
+        # generating a random secret for the user if they don't have one
+        if not user.mfa_secret:
+          user.mfa_secret = pyotp.random_base32()
+          user.save()
+
+        # creating the TOTP object
+        totp = pyotp.TOTP(user.mfa_secret)
+        
+        # creating the URL that Authenticator apps understand
+        provisioning_url = totp.provisioning_uri(
+          name=user.email, 
+          issuer_name="PasswordManager"
+        )
+
+        # generating a QR code image to send to the frontend
+        img = qrcode.make(provisioning_url)
+        buf = io.BytesIO()
+        img.save(buf, format='PNG')
+        qr_base64 = base64.b64encode(buf.getvalue()).decode()
+
+        return Response({
+          "qr_code": qr_base64, # send the image as a string
+          "secret": user.mfa_secret # show the text secret as a backup
+        })
+
+class VerifyMFAView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        user = request.user
+        code = request.data.get("code") # the 6-digit code from the user
+
+        if not user.mfa_secret:
+          return Response({"error": "MFA not initialized"}, status=400)
+
+        # verifying the code
+        totp = pyotp.TOTP(user.mfa_secret)
+        if totp.verify(code):
+          user.is_mfa_enabled = True # OFFICIALLY ENABLED
+          user.save()
+          
+          # generate backup codes 
+          import uuid
+          user.backup_codes = [str(uuid.uuid4())[:8] for _ in range(5)]
+          user.save()
+          
+          return Response({
+            "message": "MFA Enabled successfully!",
+            "backup_codes": user.backup_codes
+          })
+        
+        else:
+          return Response({"error": "Invalid code. Try again."}, status=400)
    
 
 

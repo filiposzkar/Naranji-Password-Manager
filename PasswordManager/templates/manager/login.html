@@ -6,32 +6,35 @@
         <meta http-equiv="X-UA-Compatible" content="IE=edge">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <link rel="stylesheet" href="{% static 'manager/css/loginStyles.css' %}">  
-        <script src="script.js" defer></script>
+        <script src="{% static 'manager/js/scriptLogin.js' %}" defer></script>
         <title>Naranji | Log In</title>
     </head>
     <body>
         <div class="sign-up-form">
             <img id="NaranjiLogo" src="{% static 'manager/assets/NaranjiLogo.png' %}">
             <h1 id="Naranji">Naranji</h1>
-            <p id="welcome-back">Welcome back!</p>
-            
-            <form method="POST" action="{% url 'login_view' %}">
-                {% csrf_token %} <div class="input-group">
-                    <label>Username</label>
-                    <input type="text" name="username" id="given-username" required>
-                </div>
+            <div id="login-step-1">
+                <p id="welcome-back">Welcome back!</p>
+                <form id="auth-form">
+                    {% csrf_token %}
+                    <div class="input-group">
+                        <label>Username</label>
+                        <input type="text" id="given-username" required>
+                    </div>
+                    <div class="input-group">
+                        <label>Password</label>
+                        <input type="password" id="given-password" required>
+                    </div>
+                    <button type="submit" id="login-button">Login</button>
+                </form>
+            </div>
 
+            <div id="login-step-2" style="display: none;">
+                <p id="welcome-back">Enter 6-digit MFA Code</p>
                 <div class="input-group">
-                    <label>Password</label>
-                    <input type="password" name="password" id="given-password" required>
+                    <input type="text" id="mfa-code" placeholder="000000" maxlength="6" style="text-align: center; font-size: 24px;">
                 </div>
-
-                <div class="input-group">
-                    <label>Secret Key</label>
-                    <input type="text" name="secret_key" id="given-secret-key">
-                </div>
-
-                <button type="submit" id="login-button">Log In</button>
-            </form>
+                <button type="button" id="verify-mfa-button" class="login-button">Verify & Log In</button>
+            </div>
         </div>
     </body>
