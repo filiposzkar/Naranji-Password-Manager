@@ -203,7 +203,6 @@ def delete_credential_view(request, cred_id):
 
 
 def add_note_view(request):
-  # raise Exception("IF YOU SEE THIS, THE CODE IS WORKING")
   if request.method == "POST":
     data = json.loads(request.body)  # parsing the incoming JSON
     serializer = SecuredNotesSerializer(data=data) # giving the data to the serializer
