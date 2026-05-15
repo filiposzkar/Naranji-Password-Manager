@@ -324,16 +324,33 @@
 }
 
 #generate-codes-btn{
-    background-color: #F4FEBC;
-    color:#5A7011;
-    border-radius: 5px;
+    background-color: #fdfae1;
+    color:#2d3e1d;
+    border-radius: 20px;
     border: none;
-    height: 30px;
+    height: 35px;
     width: 300px;
     cursor: pointer;
+    margin-top: 10px;
 }
 
 #generate-codes-btn:hover{
     background-color: #5A7011;
-    color: #F4FEBC;
+    color: #fdfae1;
+}
+
+#save-backup-btn{
+    color: #2d3e1d;
+    background-color: #fdfae1;
+    cursor: pointer;
+    border: none;
+    border-radius: 10px;
+    width: 200px;
+    height:30px;
+}
+
+
+#save-backup-btn:hover{
+    background-color: #5A7011;
+    color: #fdfae1;
 }

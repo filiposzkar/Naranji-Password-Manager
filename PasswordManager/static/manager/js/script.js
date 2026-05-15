@@ -45,6 +45,33 @@ document.getElementById('generate-codes-btn').addEventListener('click', function
 });
 
 
+document.getElementById('save-backup-btn').addEventListener('click', function() {
+    const phrase = document.getElementById('setup-phrase').value;
+    const masterKey = prompt("Please confirm your current Master Key to encrypt the backup:");
+
+    if (!phrase || !masterKey) return alert("Both fields are required!");
+
+    fetch('/api/setup-recovery/', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': getCookie('csrftoken')
+        },
+        body: JSON.stringify({
+            phrase: phrase,
+            master_key: masterKey
+        }),
+        credentials: 'include'
+    })
+    .then(response => response.json())
+    .then(data => {
+        document.getElementById('setup-message').innerText = "Backup secured! You can now use the recovery page.";
+        document.getElementById('setup-message').style.color = "green";
+    })
+    .catch(err => console.error(err));
+});
+
+
 async function loadCredentialsFromServer() {
     if (!userMasterKey) {
         userMasterKey = sessionStorage.getItem('master_key') || "";

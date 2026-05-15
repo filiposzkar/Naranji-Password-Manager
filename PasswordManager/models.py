@@ -39,7 +39,7 @@ class CustomUser(AbstractUser):
 class RecoveryKey(models.Model):  # this is used in case the user forgets their master key
   user = models.OneToOneField(CustomUser, on_delete=models.CASCADE)
   encrypted_master_key_backup = models.TextField()
-  created_at = models.DateTimeField(auto_now_add=True)
+  recovery_phrase_hash = models.CharField(max_length=128)
 
 
 class EmergencyAccessCode(models.Model):  # this is used as a third way of verification (in case the user losses their phone and cannot use Google Authentication)

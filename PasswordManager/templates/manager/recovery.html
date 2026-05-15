@@ -1,0 +1,28 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta http-equiv="X-UA-Compatible" content="IE=edge">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <link rel="stylesheet" href="{% static 'manager/css/recoveryStyles.css' %}">  
+        <script src="{% static 'manager/js/scriptRecovery.js' %}" defer></script> 
+        <title>Naranji | Log In Credentials</title>
+    </head>
+    <body>
+    <div class="recovery-container">
+        <h2>Recover Master Key</h2>
+        <p>Enter your username and your 12-word recovery phrase to retrieve your Master Key.</p>
+        
+        <input type="text" id="recovery-username" placeholder="Username">
+        <textarea id="recovery-phrase" placeholder="Enter your 12-word phrase here..."></textarea>
+        
+        <button id="recover-btn">Recover Master Key</button>
+        
+        <div id="master-key-display" style="display:none; margin-top: 20px; padding: 15px; border: 2px solid green;">
+            <p><strong>Your Master Key:</strong> <span id="key-text" style="color: green; font-weight: bold;"></span></p>
+            <p><small>Write it down and keep it safe. This will disappear when you refresh.</small></p>
+        </div>
+        <p id="error-message" style="color: red;"></p>
+    </div>
+</body>

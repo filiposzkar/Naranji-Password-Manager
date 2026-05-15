@@ -145,6 +145,57 @@ def generate_new_codes(request):
     return Response({'codes': raw_codes}, status=200)
 
 
+def derive_key(phrase):
+    return base64.urlsafe_b64encode(phrase.ljust(32)[:32].encode())
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def setup_master_key_recovery(request):
+    user = request.user
+    mnemo = mnemonic.Mnemonic("english") # generating a 12-word recovery phrase
+    words = mnemo.generate(strength=128) # "apple banana cherry..."
+    
+    master_key = request.data.get('master_key')  # getting the current Master Key (provided by user in the request)
+    
+    crypto_key = derive_key(words)  # encrypting the Master Key using the words
+    f = Fernet(crypto_key)
+    encrypted_backup = f.encrypt(master_key.encode()).decode()
+    
+    RecoveryKey.objects.update_or_create(  # save to Database
+        user=user,
+        defaults={
+            'encrypted_master_key_backup': encrypted_backup,
+            'recovery_phrase_hash': make_password(words) # storing hashed phrase
+        }
+    )
+    return Response({"recovery_phrase": words}) 
+
+
+
+@api_view(['POST'])
+def recover_master_key(request):
+    username = request.data.get('username')
+    provided_words = request.data.get('recovery_phrase').strip()
+    
+    try:
+        user = CustomUser.objects.get(username=username)
+        recovery_data = RecoveryKey.objects.get(user=user)
+        
+        if check_password(provided_words, recovery_data.recovery_phrase_hash): # checking if the phrase matches the hash
+            crypto_key = derive_key(provided_words)  # using the words to decrypt the backup
+            f = Fernet(crypto_key)
+            decrypted_key = f.decrypt(recovery_data.encrypted_master_key_backup.encode()).decode()
+            
+            return Response({"master_key": decrypted_key}, status=200)
+        else:
+            return Response({"error": "Incorrect recovery phrase"}, status=401)
+            
+    except (CustomUser.DoesNotExist, RecoveryKey.DoesNotExist):
+        return Response({"error": "Recovery data not found"}, status=404)
+
+
+
 def register_view(request):
   if request.method == "POST":
     try:
@@ -171,7 +222,6 @@ def register_view(request):
   
   return render(request, 'manager/signUp.html')
       
-
 
 
 @ensure_csrf_cookie

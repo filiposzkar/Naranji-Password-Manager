@@ -19,6 +19,7 @@ from django.urls import path, include
 from PasswordManager import views
 from PasswordManager.views import CredentialListCreateView, CredentialDetailView, NotesListCreateView, NotesDetailView
 from django.views.decorators.csrf import csrf_exempt
+from django.views.generic import TemplateView
 
 urlpatterns = [
     
@@ -43,5 +44,9 @@ urlpatterns = [
     path('mfa/verify/', views.VerifyMFAView.as_view(), name='mfa-verify'),
     path('login/verify-mfa/', views.verify_login_mfa, name='verify-login-mfa'),
     path('generate-codes/', views.generate_new_codes, name='generate_new_codes'),
+
+    path('recover-master-key-page/', TemplateView.as_view(template_name='manager/recovery.html'), name='recovery_page'),
+    path('api/setup-recovery/', views.setup_master_key_recovery, name='setup_recovery'),
+    path('api/recover-master-key/', views.recover_master_key, name='recover_master_key'),
 ]
 
