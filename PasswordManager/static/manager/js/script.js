@@ -18,13 +18,16 @@ function getCookie(name) {
 
 
 document.getElementById('generate-codes-btn').addEventListener('click', function() {
+    const csrftoken = getCookie('csrftoken');
     fetch('/generate-codes/', {
         method: 'POST',
         credentials: 'include',
         headers: {
             'X-CSRFToken': getCookie('csrftoken'), 
-            'Content-Type': 'application/json'
-        }
+            'Content-Type': 'application/json',
+            'X-CSRFToken': csrftoken
+        },
+        credentials: 'include'
     })
     .then(response => response.json())
     .then(data => {

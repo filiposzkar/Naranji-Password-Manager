@@ -322,3 +322,18 @@
     margin-top: 20px;
     margin-left: 75px;
 }
+
+#generate-codes-btn{
+    background-color: #F4FEBC;
+    color:#5A7011;
+    border-radius: 5px;
+    border: none;
+    height: 30px;
+    width: 300px;
+    cursor: pointer;
+}
+
+#generate-codes-btn:hover{
+    background-color: #5A7011;
+    color: #F4FEBC;
+}

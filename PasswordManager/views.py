@@ -32,7 +32,7 @@ from django.contrib.auth.hashers import check_password
 import secrets, string
 from django.contrib.auth.hashers import make_password
 from .models import EmergencyAccessCode
-from rest_framework.decorators import permission_classes
+from rest_framework.decorators import permission_classes, authentication_classes
 
 
 @login_required
@@ -126,8 +126,8 @@ def verify_login_mfa(request):
         return Response({"error": "User not found"}, status=404)
 
 
-@csrf_exempt
 @api_view(['POST'])
+@authentication_classes([SessionAuthentication]) 
 @permission_classes([IsAuthenticated])
 def generate_new_codes(request):
     EmergencyAccessCode.objects.filter(user=request.user).delete()
@@ -675,7 +675,6 @@ class VerifyMFAView(APIView):
         else:
           return Response({"error": "Invalid code. Try again."}, status=400)
    
-
 
 
 
