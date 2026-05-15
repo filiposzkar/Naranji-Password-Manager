@@ -9,7 +9,7 @@ from django.http import JsonResponse
 from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import csrf_exempt
 import json
-from .models import Credential, Note, CustomUser, UserLog, Role
+from .models import Credential, Note, CustomUser, UserLog, Role, EmergencyAccessCode
 from django.db.models import Count
 from django.contrib.auth import authenticate, login
 from django.contrib.auth.decorators import login_required
@@ -28,6 +28,11 @@ import pyotp
 import qrcode
 import io
 from rest_framework.decorators import api_view
+from django.contrib.auth.hashers import check_password
+import secrets, string
+from django.contrib.auth.hashers import make_password
+from .models import EmergencyAccessCode
+from rest_framework.decorators import permission_classes
 
 
 @login_required
@@ -88,25 +93,56 @@ def login_view(request):
   return Response({"error": "Invalid username or password"}, status=401)
 
 
+
 @api_view(['POST'])
 def verify_login_mfa(request):
     username = request.data.get('username')
-    code = request.data.get('code')
+    code = request.data.get('code')  # this could be either the 6-digit code or the recovery 10-digit code
     
     try:
-        from .models import CustomUser
+        #from .models import CustomUser
         user = CustomUser.objects.get(username=username)
         
+        # trying the 6-digit code first
         totp = pyotp.TOTP(user.mfa_secret)
         if totp.verify(code):
             login(request, user) # Success! Start the session
             return Response({"message": "Authorized"}, status=200)
-        else:
-            return Response({"error": "Invalid MFA code"}, status=401)
+        
+        # if MFA fails, we are trying the Emergency Recovery Code, the 10-digit code
+        # looking for unused codes for this user
+        recovery_codes = EmergencyAccessCode.objects.filter(user=user, used=False)
+        for recovery_obj in recovery_codes:
+            if check_password(code, recovery_obj.code_hash): # checking if the code the user typed matches this stored hash
+                recovery_obj.used = True  # success, so we "destroy" the code so it can't be used again
+                recovery_obj.save()
+                
+                login(request, user)
+                return Response({"message": "Authorized"}, status=200)
+            
+        return Response({"error": "Invalid code or recovery key"}, status=401)
             
     except CustomUser.DoesNotExist:
         return Response({"error": "User not found"}, status=404)
 
+
+@csrf_exempt
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def generate_new_codes(request):
+    EmergencyAccessCode.objects.filter(user=request.user).delete()
+    
+    raw_codes = []
+    for _ in range(10):
+        code = '-'.join(''.join(secrets.choice(string.ascii_uppercase + string.digits) for _ in range(4)) for _ in range(3))
+        raw_codes.append(code)
+        
+        EmergencyAccessCode.objects.create(
+          user=request.user,
+          code_hash=make_password(code)
+        )
+    
+    return Response({'codes': raw_codes}, status=200)
 
 
 def register_view(request):

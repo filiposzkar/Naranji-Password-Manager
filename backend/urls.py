@@ -42,5 +42,6 @@ urlpatterns = [
     path('mfa/enable/', views.EnableMFAView.as_view(), name='mfa-enable'),
     path('mfa/verify/', views.VerifyMFAView.as_view(), name='mfa-verify'),
     path('login/verify-mfa/', views.verify_login_mfa, name='verify-login-mfa'),
+    path('generate-codes/', views.generate_new_codes, name='generate_new_codes'),
 ]
 

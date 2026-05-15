@@ -17,6 +17,31 @@ function getCookie(name) {
 }
 
 
+document.getElementById('generate-codes-btn').addEventListener('click', function() {
+    fetch('/generate-codes/', {
+        method: 'POST',
+        credentials: 'include',
+        headers: {
+            'X-CSRFToken': getCookie('csrftoken'), 
+            'Content-Type': 'application/json'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        const list = document.getElementById('codes-list');
+        list.innerHTML = '';
+        data.codes.forEach(code => {
+            const li = document.createElement('li');
+            li.style.fontFamily = 'monospace';
+            li.innerText = code;
+            list.appendChild(li);
+        });
+        document.getElementById('codes-display').style.display = 'block';
+    })
+    .catch(error => console.error('Error:', error));
+});
+
+
 async function loadCredentialsFromServer() {
     if (!userMasterKey) {
         userMasterKey = sessionStorage.getItem('master_key') || "";
