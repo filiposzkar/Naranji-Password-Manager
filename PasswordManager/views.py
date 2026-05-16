@@ -83,8 +83,7 @@ def check_token_scope(request, allowed_scopes):
       expires_at__gt=timezone.now()
     )
     
-    # FIX: Ensure we cleanly read allowed_scopes passed into the function parameters
-    # If a single string was passed (e.g., "write_notes"), convert it to a list
+    # if a single string was passed (e.g., "write_notes"), convert it to a list
     if isinstance(allowed_scopes, str):
       scopes_list = [allowed_scopes]
     else:
@@ -100,59 +99,39 @@ def check_token_scope(request, allowed_scopes):
     raise PermissionDenied("Invalid or expired token.")
 
 
-
-# @login_required
-# def get_credentials(request):
-#   user_credentials = Credential.objects.filter(user=request.user).order_by('-id')
-#   serializer = CredentialSerializer(user_credentials, many=True)
-#   return JsonResponse(serializer.data, safe=False) 
-
-# @login_required
-# def get_notes(request):
-#   user_notes = Note.objects.filter(user=request.user).order_by('-id')
-#   serializer = SecuredNotesSerializer(user_notes, many=True)
-#   return JsonResponse(serializer.data, safe=False)
-
-
-
 def get_credentials(request):
-    if request.method == "GET":
-        try:
-            # 1. Authorize the API token scope for either role context
-            token_user = check_token_scope(request, ["write_notes", "admin_access"])
-            
-            # 2. Enforce strict data isolation using the validated token user object
-            user_credentials = Credential.objects.filter(user=token_user).order_by('-id')
-            
-            serializer = CredentialSerializer(user_credentials, many=True)
-            return JsonResponse(serializer.data, safe=False, status=200)
-            
-        except PermissionDenied as error:
-            return JsonResponse({"error": str(error)}, status=403)
-        except Exception as e:
-            return JsonResponse({"error": str(e)}, status=500)
-            
-    return JsonResponse({"error": "Only GET allowed"}, status=405)
+  if request.method == "GET":
+    try:
+      token_user = check_token_scope(request, ["write_notes", "admin_access"])
+      user_credentials = Credential.objects.filter(user=token_user).order_by('-id')
+      
+      serializer = CredentialSerializer(user_credentials, many=True)
+      return JsonResponse(serializer.data, safe=False, status=200)
+        
+    except PermissionDenied as error:
+        return JsonResponse({"error": str(error)}, status=403)
+    except Exception as e:
+        return JsonResponse({"error": str(e)}, status=500)
+          
+  return JsonResponse({"error": "Only GET allowed"}, status=405)
+
 
 
 def get_notes(request):
-    if request.method == "GET":
-        try:
-            # 1. Authorize the API token scope for either role context
-            token_user = check_token_scope(request, ["write_notes", "admin_access"])
-            
-            # 2. Enforce strict data isolation using the validated token user object
-            user_notes = Note.objects.filter(user=token_user).order_by('-id')
-            
-            serializer = SecuredNotesSerializer(user_notes, many=True)
-            return JsonResponse(serializer.data, safe=False, status=200)
-            
-        except PermissionDenied as error:
-            return JsonResponse({"error": str(error)}, status=403)
-        except Exception as e:
-            return JsonResponse({"error": str(e)}, status=500)
-            
-    return JsonResponse({"error": "Only GET allowed"}, status=405)
+  if request.method == "GET":
+    try:
+      token_user = check_token_scope(request, ["write_notes", "admin_access"])
+      user_notes = Note.objects.filter(user=token_user).order_by('-id')
+      
+      serializer = SecuredNotesSerializer(user_notes, many=True)
+      return JsonResponse(serializer.data, safe=False, status=200)
+        
+    except PermissionDenied as error:
+      return JsonResponse({"error": str(error)}, status=403)
+    except Exception as e:
+      return JsonResponse({"error": str(e)}, status=500)
+          
+  return JsonResponse({"error": "Only GET allowed"}, status=405)
 
 
 
@@ -171,7 +150,7 @@ def statistics_page(request):
   suspicious_logs = UserLog.objects.filter(is_suspicious=True).order_by('-timestamp')
 
   return render(request, 'manager/statistics.html', {
-      'suspicious_logs': suspicious_logs
+    'suspicious_logs': suspicious_logs
   })
 
 
@@ -184,14 +163,13 @@ def login_view(request):
   
   username = request.data.get('username')
   password = request.data.get('password')
-  
   user = authenticate(request, username=username, password=password)
   
   if user is not None:
     if user.is_mfa_enabled:
       return Response({
-          "mfa_required": True,
-          "username": user.username 
+        "mfa_required": True,
+        "username": user.username 
       }, status=200)
     
     login(request, user)
@@ -199,38 +177,6 @@ def login_view(request):
 
   return Response({"error": "Invalid username or password"}, status=401)
 
-
-
-# @api_view(['POST'])
-# def verify_login_mfa(request):
-#     username = request.data.get('username')
-#     code = request.data.get('code')  # this could be either the 6-digit code or the recovery 10-digit code
-    
-#     try:
-#         user = CustomUser.objects.get(username=username)
-        
-#         # trying the 6-digit code first
-#         totp = pyotp.TOTP(user.mfa_secret)
-#         if totp.verify(code):
-#             login(request, user) # Success! Start the session
-#             return Response({"message": "Authorized"}, status=200)
-        
-#         # if MFA fails, we are trying the Emergency Recovery Code, the 10-digit code
-#         # looking for unused codes for this user
-#         recovery_codes = EmergencyAccessCode.objects.filter(user=user, used=False)
-#         for recovery_obj in recovery_codes:
-#             if check_password(code, recovery_obj.code_hash): # checking if the code the user typed matches this stored hash
-#                 recovery_obj.used = True  # success, so we "destroy" the code so it can't be used again
-#                 recovery_obj.save()
-                
-#                 login(request, user)
-#                 return Response({"message": "Authorized"}, status=200)
-            
-#         return Response({"error": "Invalid code or recovery key"}, status=401)
-            
-#     except CustomUser.DoesNotExist:
-#         return Response({"error": "User not found"}, status=404)
-    
 
 
 @api_view(['POST'])
@@ -298,25 +244,6 @@ def verify_login_mfa(request):
         return Response({"error": "User not found"}, status=404)
 
 
-# @api_view(['POST'])
-# @authentication_classes([SessionAuthentication]) 
-# @permission_classes([IsAuthenticated])
-# def generate_new_codes(request):
-#     EmergencyAccessCode.objects.filter(user=request.user).delete()  # delete any old recovery codes the user generated in the past, we want new ones
-    
-#     raw_codes = []
-#     for _ in range(10):
-#         code = '-'.join(''.join(secrets.choice(string.ascii_uppercase + string.digits) for _ in range(4)) for _ in range(3))
-#         raw_codes.append(code)
-        
-#         EmergencyAccessCode.objects.create(
-#           user=request.user,
-#           code_hash=make_password(code)  # hashing every recovery code generated, so we dont store plain text in the database
-#         )
-    
-#     return Response({'codes': raw_codes}, status=200)
-
-
 
 
 @api_view(['POST'])
@@ -351,100 +278,74 @@ def derive_key(phrase):  # this function transforms the words given by the user 
   return base64.urlsafe_b64encode(phrase.ljust(32)[:32].encode())
 
 
-# @api_view(['POST'])
-# @permission_classes([IsAuthenticated])
-# def setup_master_key_recovery(request):
-#     user = request.user
-#     mnemo = mnemonic.Mnemonic("english") # generating a 12-word recovery phrase
-#     words = mnemo.generate(strength=128) # "apple banana cherry..."
-    
-#     master_key = request.data.get('master_key')  # getting the current Master Key (provided by user in the request)
-    
-#     crypto_key = derive_key(words)  # encrypting the Master Key using the words
-#     f = Fernet(crypto_key)
-#     encrypted_backup = f.encrypt(master_key.encode()).decode()
-    
-#     RecoveryKey.objects.update_or_create(  # save to Database in the RecoveryKey table
-#         user=user,
-#         defaults={
-#             'encrypted_master_key_backup': encrypted_backup,
-#             'recovery_phrase_hash': make_password(words) # storing hashed phrase (the recovery key given by the user)
-#         }
-#     )
-#     return Response({"recovery_phrase": words}) 
-
-
 
 @api_view(['POST'])
 def recover_master_key(request):
-    username = request.data.get('username')
-    provided_words = request.data.get('recovery_phrase').strip()
+  username = request.data.get('username')
+  provided_words = request.data.get('recovery_phrase').strip()
 
-    try:
-        user = CustomUser.objects.get(username=username)
-        recovery_data = RecoveryKey.objects.get(user=user)
-        
-        # 1. Verify the phrase matches the stored hash
-        if check_password(provided_words, recovery_data.recovery_phrase_hash):
-            
-            # 2. Derive the key from the provided words
-            crypto_key = derive_key(provided_words)
-            f = Fernet(crypto_key)
-            
-            # 3. Decrypt the original master key backup
-            decrypted_master_key = f.decrypt(recovery_data.encrypted_master_key_backup.encode()).decode()
-            
-            # 4. Return it to the frontend so the user can log in and view their data!
-            return Response({"master_key": decrypted_master_key}, status=200)
-        else:
-            return Response({"error": "Incorrect recovery phrase"}, status=401)
-            
-    except (CustomUser.DoesNotExist, RecoveryKey.DoesNotExist):
-        return Response({"error": "Recovery data not found"}, status=404)
+  try:
+    user = CustomUser.objects.get(username=username)
+    recovery_data = RecoveryKey.objects.get(user=user)
+      
+    if check_password(provided_words, recovery_data.recovery_phrase_hash):
+      # deriving the key from the provided words
+      crypto_key = derive_key(provided_words)
+      f = Fernet(crypto_key)
+      
+      # decrypting the original master key backup
+      decrypted_master_key = f.decrypt(recovery_data.encrypted_master_key_backup.encode()).decode()
+      
+      # return it to the frontend so the user can log in and view their data
+      return Response({"master_key": decrypted_master_key}, status=200)
+    else:
+      return Response({"error": "Incorrect recovery phrase"}, status=401)
+          
+  except (CustomUser.DoesNotExist, RecoveryKey.DoesNotExist):
+    return Response({"error": "Recovery data not found"}, status=404)
 
 
 
 @login_required # ensures only logged-in users can call this
 @csrf_protect   # CSRF protection
 def setup_master_key_recovery(request):
-    if request.method == 'POST':
-        try:
-            data = json.loads(request.body)
-            phrase = data.get('phrase')
-            master_key = data.get('master_key')
+  if request.method == 'POST':
+    try:
+      data = json.loads(request.body)
+      phrase = data.get('phrase')
+      master_key = data.get('master_key')
 
-            if not phrase or not master_key:
-              return JsonResponse({"status": "error", "message": "Missing data"}, status=400)
+      if not phrase or not master_key:
+        return JsonResponse({"status": "error", "message": "Missing data"}, status=400)
 
-            # hashing the recovery phrase so we don't store it in plain text
-            hashed_phrase = make_password(phrase.strip())
+      # hashing the recovery phrase so we don't store it in plain text
+      hashed_phrase = make_password(phrase.strip())
 
-            # deriving a robust cryptographic key from the recovery phrase words
-            crypto_key = derive_key(phrase.strip()) 
-            f = Fernet(crypto_key)  # this starts the encryption process
+      # deriving a robust cryptographic key from the recovery phrase words
+      crypto_key = derive_key(phrase.strip()) 
+      f = Fernet(crypto_key)  # this starts the encryption process
 
-            # encrypting the actual master_key using the recovery phrase's key
-            # this locks the master key in a vault that only the recovery phrase can open
-            encrypted_master_key_backup = f.encrypt(master_key.encode()).decode()
+      # encrypting the actual master_key using the recovery phrase's key
+      # this locks the master key in a vault that only the recovery phrase can open
+      encrypted_master_key_backup = f.encrypt(master_key.encode()).decode()
 
-            # saving or update the record in the database for this specific user
-            recovery_data, created = RecoveryKey.objects.update_or_create(
-                user=request.user,
-                defaults={
-                    'recovery_phrase_hash': hashed_phrase,
-                    'encrypted_master_key_backup': encrypted_master_key_backup
-                }
-            )
+      # saving or update the record in the database for this specific user
+      recovery_data, created = RecoveryKey.objects.update_or_create(
+          user=request.user,
+          defaults={
+              'recovery_phrase_hash': hashed_phrase,
+              'encrypted_master_key_backup': encrypted_master_key_backup
+          }
+      )
+      print(f"Success! Backup secured for {request.user.username}")
+      return JsonResponse({"status": "success", "message": "Backup secured!"})
 
-            print(f"Success! Backup secured for {request.user.username}")
-            return JsonResponse({"status": "success", "message": "Backup secured!"})
+    except json.JSONDecodeError:
+      return JsonResponse({"status": "error", "message": "Invalid JSON"}, status=400)
+    except Exception as e:
+      return JsonResponse({"status": "error", "message": f"Server error: {str(e)}"}, status=500)
 
-        except json.JSONDecodeError:
-            return JsonResponse({"status": "error", "message": "Invalid JSON"}, status=400)
-        except Exception as e:
-            return JsonResponse({"status": "error", "message": f"Server error: {str(e)}"}, status=500)
-
-    return JsonResponse({"status": "error", "message": "Method not allowed"}, status=405)
+  return JsonResponse({"status": "error", "message": "Method not allowed"}, status=405)
 
 
 
@@ -508,27 +409,27 @@ def get_crypto_key(master_key_string):  # turns the user's master key string int
 def add_credential_view(request):
   if request.method == "POST":
     try:
-        token_user = check_token_scope(request, ["write_notes", "admin_access"])
-        master_key = request.headers.get('X-Master-Key')  # extracting the master key from the custom header
-        if not master_key:
-          return JsonResponse({"error": "Master key is required for encryption"}, status=400)
-        
-        data = json.loads(request.body)  # parsing the incoming JSON
+      token_user = check_token_scope(request, ["write_notes", "admin_access"])
+      master_key = request.headers.get('X-Master-Key')  # extracting the master key from the custom header
+      if not master_key:
+        return JsonResponse({"error": "Master key is required for encryption"}, status=400)
+      
+      data = json.loads(request.body)  # parsing the incoming JSON
 
-        # encrypting the password
-        raw_password = data.get('password')
-        if raw_password:
-          key = get_crypto_key(master_key)
-          f = Fernet(key)
-          encrypted_password = f.encrypt(raw_password.encode()).decode()
-          data['password'] = encrypted_password
+      # encrypting the password
+      raw_password = data.get('password')
+      if raw_password:
+        key = get_crypto_key(master_key)
+        f = Fernet(key)
+        encrypted_password = f.encrypt(raw_password.encode()).decode()
+        data['password'] = encrypted_password
 
-        serializer = CredentialSerializer(data=data) # giving the data to the serializer
-        if serializer.is_valid():
-          new_credential = serializer.save(user=request.user)
-          return JsonResponse(CredentialSerializer(new_credential).data, status=201) # returning the data as JSON
-        else:
-          return JsonResponse({"error": serializer.errors}, status=400)
+      serializer = CredentialSerializer(data=data) # giving the data to the serializer
+      if serializer.is_valid():
+        new_credential = serializer.save(user=request.user)
+        return JsonResponse(CredentialSerializer(new_credential).data, status=201) # returning the data as JSON
+      else:
+        return JsonResponse({"error": serializer.errors}, status=400)
         
     except PermissionDenied as error:
       return JsonResponse({"error": str(error)}, status=403)
@@ -541,31 +442,31 @@ def add_credential_view(request):
          
 
 def update_credential_view(request, cred_id):
-    if request.method == "PUT":
-      try:
-          token_user = check_token_scope(request, ["write_notes", "admin_access"])
+  if request.method == "PUT":
+    try:
+      token_user = check_token_scope(request, ["write_notes", "admin_access"])
 
-          if not Credential.objects.filter(id=cred_id, user=token_user).exists():
-            return JsonResponse({"error": "Unauthorized access to this resource"}, status=403)
-          
-          data = json.loads(request.body)
-          website = data.get('website_name')
-          password = data.get('password')
+      if not Credential.objects.filter(id=cred_id, user=token_user).exists():
+        return JsonResponse({"error": "Unauthorized access to this resource"}, status=403)
+      
+      data = json.loads(request.body)
+      website = data.get('website_name')
+      password = data.get('password')
 
-          if website == "" or password == "":
-            return JsonResponse({"error": "Fields website_name and password cannot be empty"}, status=400)
+      if website == "" or password == "":
+        return JsonResponse({"error": "Fields website_name and password cannot be empty"}, status=400)
 
-          updated_item = service.update_credential(cred_id, data)
-          if updated_item:
-            return JsonResponse(updated_item, status=200)
-          else:
-            return JsonResponse({"error": "Credential not found"}, status=404)
-          
-      except PermissionDenied as error:
-            return JsonResponse({"error": str(error)}, status=403)
-      except Exception as e:
-          return JsonResponse({"error": str(e)}, status=500)
-    return JsonResponse({"error": "Only PUT allowed"}, status=405)
+      updated_item = service.update_credential(cred_id, data)
+      if updated_item:
+        return JsonResponse(updated_item, status=200)
+      else:
+        return JsonResponse({"error": "Credential not found"}, status=404)
+        
+    except PermissionDenied as error:
+      return JsonResponse({"error": str(error)}, status=403)
+    except Exception as e:
+      return JsonResponse({"error": str(e)}, status=500)
+  return JsonResponse({"error": "Only PUT allowed"}, status=405)
 
 
 
