@@ -9,7 +9,7 @@ from django.http import JsonResponse
 from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import csrf_exempt
 import json
-from .models import Credential, Note, CustomUser, UserLog, Role, EmergencyAccessCode
+from .models import Credential, Note, CustomUser, UserLog, Role, EmergencyAccessCode, RecoveryKey
 from django.db.models import Count
 from django.contrib.auth import authenticate, login
 from django.contrib.auth.decorators import login_required
@@ -33,6 +33,7 @@ import secrets, string
 from django.contrib.auth.hashers import make_password
 from .models import EmergencyAccessCode
 from rest_framework.decorators import permission_classes, authentication_classes
+from django.views.decorators.csrf import csrf_protect
 
 
 @login_required
@@ -54,8 +55,6 @@ def home(request):
 def notes_page(request):
   return render(request, 'manager/secretNotes.html')
 
-# def statistics_page(request):
-#   return render(request, 'manager/statistics.html')
 
 @login_required
 def statistics_page(request):
@@ -100,7 +99,6 @@ def verify_login_mfa(request):
     code = request.data.get('code')  # this could be either the 6-digit code or the recovery 10-digit code
     
     try:
-        #from .models import CustomUser
         user = CustomUser.objects.get(username=username)
         
         # trying the 6-digit code first
@@ -130,7 +128,7 @@ def verify_login_mfa(request):
 @authentication_classes([SessionAuthentication]) 
 @permission_classes([IsAuthenticated])
 def generate_new_codes(request):
-    EmergencyAccessCode.objects.filter(user=request.user).delete()
+    EmergencyAccessCode.objects.filter(user=request.user).delete()  # delete any old recovery codes the user generated in the past, we want new ones
     
     raw_codes = []
     for _ in range(10):
@@ -139,37 +137,37 @@ def generate_new_codes(request):
         
         EmergencyAccessCode.objects.create(
           user=request.user,
-          code_hash=make_password(code)
+          code_hash=make_password(code)  # hashing every recovery code generated, so we dont store plain text in the database
         )
     
     return Response({'codes': raw_codes}, status=200)
 
 
-def derive_key(phrase):
-    return base64.urlsafe_b64encode(phrase.ljust(32)[:32].encode())
+def derive_key(phrase):  # this function transforms the words given by the user as recovery master key, and turns them into a strong cryptographic key
+  return base64.urlsafe_b64encode(phrase.ljust(32)[:32].encode())
 
 
-@api_view(['POST'])
-@permission_classes([IsAuthenticated])
-def setup_master_key_recovery(request):
-    user = request.user
-    mnemo = mnemonic.Mnemonic("english") # generating a 12-word recovery phrase
-    words = mnemo.generate(strength=128) # "apple banana cherry..."
+# @api_view(['POST'])
+# @permission_classes([IsAuthenticated])
+# def setup_master_key_recovery(request):
+#     user = request.user
+#     mnemo = mnemonic.Mnemonic("english") # generating a 12-word recovery phrase
+#     words = mnemo.generate(strength=128) # "apple banana cherry..."
     
-    master_key = request.data.get('master_key')  # getting the current Master Key (provided by user in the request)
+#     master_key = request.data.get('master_key')  # getting the current Master Key (provided by user in the request)
     
-    crypto_key = derive_key(words)  # encrypting the Master Key using the words
-    f = Fernet(crypto_key)
-    encrypted_backup = f.encrypt(master_key.encode()).decode()
+#     crypto_key = derive_key(words)  # encrypting the Master Key using the words
+#     f = Fernet(crypto_key)
+#     encrypted_backup = f.encrypt(master_key.encode()).decode()
     
-    RecoveryKey.objects.update_or_create(  # save to Database
-        user=user,
-        defaults={
-            'encrypted_master_key_backup': encrypted_backup,
-            'recovery_phrase_hash': make_password(words) # storing hashed phrase
-        }
-    )
-    return Response({"recovery_phrase": words}) 
+#     RecoveryKey.objects.update_or_create(  # save to Database in the RecoveryKey table
+#         user=user,
+#         defaults={
+#             'encrypted_master_key_backup': encrypted_backup,
+#             'recovery_phrase_hash': make_password(words) # storing hashed phrase (the recovery key given by the user)
+#         }
+#     )
+#     return Response({"recovery_phrase": words}) 
 
 
 
@@ -177,22 +175,72 @@ def setup_master_key_recovery(request):
 def recover_master_key(request):
     username = request.data.get('username')
     provided_words = request.data.get('recovery_phrase').strip()
-    
+
     try:
         user = CustomUser.objects.get(username=username)
         recovery_data = RecoveryKey.objects.get(user=user)
         
-        if check_password(provided_words, recovery_data.recovery_phrase_hash): # checking if the phrase matches the hash
-            crypto_key = derive_key(provided_words)  # using the words to decrypt the backup
-            f = Fernet(crypto_key)
-            decrypted_key = f.decrypt(recovery_data.encrypted_master_key_backup.encode()).decode()
+        # 1. Verify the phrase matches the stored hash
+        if check_password(provided_words, recovery_data.recovery_phrase_hash):
             
-            return Response({"master_key": decrypted_key}, status=200)
+            # 2. Derive the key from the provided words
+            crypto_key = derive_key(provided_words)
+            f = Fernet(crypto_key)
+            
+            # 3. Decrypt the original master key backup
+            decrypted_master_key = f.decrypt(recovery_data.encrypted_master_key_backup.encode()).decode()
+            
+            # 4. Return it to the frontend so the user can log in and view their data!
+            return Response({"master_key": decrypted_master_key}, status=200)
         else:
             return Response({"error": "Incorrect recovery phrase"}, status=401)
             
     except (CustomUser.DoesNotExist, RecoveryKey.DoesNotExist):
         return Response({"error": "Recovery data not found"}, status=404)
+
+
+
+@login_required # ensures only logged-in users can call this
+@csrf_protect   # CSRF protection
+def setup_master_key_recovery(request):
+    if request.method == 'POST':
+        try:
+            data = json.loads(request.body)
+            phrase = data.get('phrase')
+            master_key = data.get('master_key')
+
+            if not phrase or not master_key:
+              return JsonResponse({"status": "error", "message": "Missing data"}, status=400)
+
+            # hashing the recovery phrase so we don't store it in plain text
+            hashed_phrase = make_password(phrase.strip())
+
+            # deriving a robust cryptographic key from the recovery phrase words
+            crypto_key = derive_key(phrase.strip()) 
+            f = Fernet(crypto_key)  # this starts the encryption process
+
+            # encrypting the actual master_key using the recovery phrase's key
+            # this locks the master key in a vault that only the recovery phrase can open
+            encrypted_master_key_backup = f.encrypt(master_key.encode()).decode()
+
+            # saving or update the record in the database for this specific user
+            recovery_data, created = RecoveryKey.objects.update_or_create(
+                user=request.user,
+                defaults={
+                    'recovery_phrase_hash': hashed_phrase,
+                    'encrypted_master_key_backup': encrypted_master_key_backup
+                }
+            )
+
+            print(f"Success! Backup secured for {request.user.username}")
+            return JsonResponse({"status": "success", "message": "Backup secured!"})
+
+        except json.JSONDecodeError:
+            return JsonResponse({"status": "error", "message": "Invalid JSON"}, status=400)
+        except Exception as e:
+            return JsonResponse({"status": "error", "message": f"Server error: {str(e)}"}, status=500)
+
+    return JsonResponse({"status": "error", "message": "Method not allowed"}, status=405)
 
 
 
@@ -249,6 +297,8 @@ def get_crypto_key(master_key_string):  # turns the user's master key string int
     iterations=100000,          # run the hash process 100000 times, to make the password as random as possible 
   )
   return base64.urlsafe_b64encode(kdf.derive(password))  # derive() produces those 100000 rounds of math and the 32-bytes 
+
+
 
 
 def add_credential_view(request):
