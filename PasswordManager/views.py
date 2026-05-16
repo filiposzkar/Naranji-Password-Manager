@@ -38,6 +38,7 @@ from functools import wraps
 import uuid
 from django.utils import timezone
 from datetime import timedelta
+from rest_framework.exceptions import PermissionDenied
 
 
 
@@ -62,6 +63,35 @@ def role_required(codename):
             return view_func(request, *args, **kwargs)
         return _wrapped_view
     return decorator
+
+
+
+def check_token_scope(request, required_scope):
+    """
+    Helper function to verify the custom ScopedToken header 
+    matches the required permission scheme.
+    """
+    # Extract token string sent by your javascript fetch headers
+    token_str = request.headers.get('X-Scoped-Token')
+    
+    if not token_str:
+        raise PermissionDenied("Missing API Scoped Token.")
+        
+    try:
+        token_obj = ScopedToken.objects.get(
+            token=token_str, 
+            is_revoked=False, 
+            expires_at__gt=timezone.now()
+        )
+        
+        # Enforce permission schemes!
+        if token_obj.scope != required_scope and token_obj.scope != "admin_access":
+            raise PermissionDenied("Token scope insufficient for this action.")
+            
+        return token_obj.user
+        
+    except ScopedToken.DoesNotExist:
+        raise PermissionDenied("Invalid or expired token.")
 
 
 
@@ -486,6 +516,8 @@ def add_note_view(request):
 def update_note_view(request, cred_id):
     if request.method == "PUT":
         try:
+            token_user = check_token_scope(request, "write_notes")
+            
             data = json.loads(request.body)
             headline = data.get('headline')
             bodytext = data.get('bodytext')
@@ -781,26 +813,43 @@ class NotesDetailView(APIView):
 @login_required
 @role_required("full_perms")
 def api_statistics(request):
-  cred_count = Credential.objects.count()
-  note_count = Note.objects.count()
+  try:
+    # Enforce and validate the token scope
+    token_user = check_token_scope(request, "admin_access")
+    
+    cred_count = Credential.objects.count()
+    note_count = Note.objects.count()
+    
+    return JsonResponse({
+        "labels": ["Credentials", "Notes"],
+        "values": [cred_count, note_count]
+    }, status=200)
+      
+  except PermissionDenied as divide_error:
+    return JsonResponse({"error": str(divide_error)}, status=403)
   
-  return JsonResponse({
-      "labels": ["Credentials", "Notes"],
-      "values": [cred_count, note_count]
-  })
 
 
 @login_required
 @role_required("full_perms")
-def api_security_stats(request): # counting how many total logs are clean vs. flagged
-  suspicious_count = UserLog.objects.filter(is_suspicious=True).count()
-  safe_count = UserLog.objects.filter(is_suspicious=False).count()
-  
-  return JsonResponse({
-    "labels": ["Safe Actions", "Suspicious Actions"],
-    "values": [safe_count, suspicious_count],
-    "colors": ["#a4c639", "#d9534f"]
-  })
+def api_security_stats(request):
+  try:
+    # Enforce and validate the token scope
+    token_user = check_token_scope(request, "admin_access")
+    
+    suspicious_count = UserLog.objects.filter(is_suspicious=True).count()
+    safe_count = UserLog.objects.filter(is_suspicious=False).count()
+    
+    return JsonResponse({
+        "labels": ["Safe Actions", "Suspicious Actions"],
+        "values": [safe_count, suspicious_count],
+        "colors": ["#a4c639", "#d9534f"]
+    }, status=200)
+      
+  except PermissionDenied as divide_error:
+    return JsonResponse({"error": str(divide_error)}, status=403)
+
+
 
 
 @login_required

@@ -54,6 +54,10 @@ document.getElementById('verify-mfa-button').addEventListener('click', async () 
     });
 
     if (response.ok) {
+        const data = await response.json();
+        if (data.token) {
+            sessionStorage.setItem('scoped_api_token', data.token);
+        }
         window.location.href = '/'; 
     } else {
         alert("Invalid MFA code. Please try again.");

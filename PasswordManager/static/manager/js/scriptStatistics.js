@@ -1,5 +1,13 @@
 async function renderVaultChart() {
-    const response = await fetch('/api/statistics/');
+    const apiToken = sessionStorage.getItem('scoped_api_token');
+
+    const response = await fetch('/api/statistics/', {
+        method: 'GET',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-Scoped-Token': apiToken // Prove admin_access scheme authorization!
+        }
+    });
     const stats = await response.json();
 
     const canvas = document.getElementById('vaultChart');
@@ -31,7 +39,15 @@ async function renderVaultChart() {
 
 
 async function renderSecurityChart() {
-    const response = await fetch('/api/security-stats/');
+    const apiToken = sessionStorage.getItem('scoped_api_token');
+
+    const response = await fetch('/api/security-stats/', {
+        method: 'GET',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-Scoped-Token': apiToken // Prove admin_access scheme authorization!
+        }
+    });
     const stats = await response.json();
 
     const ctx = document.getElementById('securityChart').getContext('2d');
