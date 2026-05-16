@@ -155,27 +155,73 @@ def statistics_page(request):
 
 
 
+# @api_view(['GET', 'POST'])
+# def login_view(request):
+
+#   if request.method == 'GET':
+#     return render(request, 'manager/login.html')
+  
+#   username = request.data.get('username')
+#   password = request.data.get('password')
+#   user = authenticate(request, username=username, password=password)
+  
+#   if user is not None:
+#     if user.is_mfa_enabled:
+#       return Response({
+#         "mfa_required": True,
+#         "username": user.username 
+#       }, status=200)
+    
+#     login(request, user)
+#     return Response({"mfa_required": False}, status=200)
+
+#   return Response({"error": "Invalid username or password"}, status=401)
+
+
+
 @api_view(['GET', 'POST'])
 def login_view(request):
-
-  if request.method == 'GET':
-    return render(request, 'manager/login.html')
-  
-  username = request.data.get('username')
-  password = request.data.get('password')
-  user = authenticate(request, username=username, password=password)
-  
-  if user is not None:
-    if user.is_mfa_enabled:
-      return Response({
-        "mfa_required": True,
-        "username": user.username 
-      }, status=200)
+    if request.method == 'GET':
+        return render(request, 'manager/login.html')
     
-    login(request, user)
-    return Response({"mfa_required": False}, status=200)
+    username = request.data.get('username')
+    password = request.data.get('password')
+    
+    user = authenticate(request, username=username, password=password)
+    
+    if user is not None:
+        # Phase 1: Check if the user has a Multi-Factor Device enabled
+        if user.is_mfa_enabled:
+            return Response({
+                "mfa_required": True,
+                "username": user.username 
+            }, status=200)
+        
+        # Phase 2 Fallback: If no MFA is active, log them in instantly via session cookie
+        login(request, user)
+        
+        # Determine the user's explicit permission scope context dynamically
+        if user.role and user.role.name == "Admin":
+            token_scope = "admin_access"
+        else:
+            token_scope = "write_notes"
+        
+        # Generate and save the scoped token database row for non-MFA users
+        user_token = ScopedToken.objects.create(
+            user=user,
+            token=uuid.uuid4(),
+            scope=token_scope,
+            expires_at=timezone.now() + timedelta(hours=2) # Token expires in 2 hours
+        )
+        
+        # Return both the session status flag AND the necessary auth token payload!
+        return Response({
+            "mfa_required": False,
+            "token": str(user_token.token),  # John's browser can now grab and save this!
+            "scope": user_token.scope
+        }, status=200)
 
-  return Response({"error": "Invalid username or password"}, status=401)
+    return Response({"error": "Invalid username or password"}, status=401)
 
 
 
@@ -380,11 +426,11 @@ def register_view(request):
 @ensure_csrf_cookie
 @login_required
 def index(request):
-    if request.user.is_superuser or request.user.role.name == "Admin":  # fetch the credentials based on role
-        credentials = Credential.objects.all()  # admins see everything in the system
-    else:
-        credentials = Credential.objects.filter(user=request.user) # normal users only see their own credentials
-    return render(request, 'index.html', {'credentials': credentials})
+  if request.user.is_superuser or request.user.role.name == "Admin":  # fetch the credentials based on role
+    credentials = Credential.objects.all()  # admins see everything in the system
+  else:
+    credentials = Credential.objects.filter(user=request.user) # normal users only see their own credentials
+  return render(request, 'index.html', {'credentials': credentials})
 
 
 def chat_view(request):
