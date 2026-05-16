@@ -66,46 +66,94 @@ def role_required(codename):
 
 
 
-def check_token_scope(request, required_scope):
-    """
-    Helper function to verify the custom ScopedToken header 
-    matches the required permission scheme.
-    """
-    # Extract token string sent by your javascript fetch headers
-    token_str = request.headers.get('X-Scoped-Token')
+def check_token_scope(request, allowed_scopes):
+  """
+  Validates that the incoming X-Scoped-Token header matches 
+  at least one of the allowed scopes string/list.
+  """
+  token_str = request.headers.get('X-Scoped-Token')
+  if not token_str:
+    raise PermissionDenied("Missing API Scoped Token.")
+      
+  try:
+    # Resolve the token string from the database
+    token_obj = ScopedToken.objects.get(
+      token=uuid.UUID(token_str), 
+      is_revoked=False, 
+      expires_at__gt=timezone.now()
+    )
     
-    if not token_str:
-        raise PermissionDenied("Missing API Scoped Token.")
+    # FIX: Ensure we cleanly read allowed_scopes passed into the function parameters
+    # If a single string was passed (e.g., "write_notes"), convert it to a list
+    if isinstance(allowed_scopes, str):
+      scopes_list = [allowed_scopes]
+    else:
+      scopes_list = allowed_scopes # If it's already a list/array
         
-    try:
-        token_obj = ScopedToken.objects.get(
-            token=token_str, 
-            is_revoked=False, 
-            expires_at__gt=timezone.now()
-        )
+    # Check if the database token's scope is valid
+    if token_obj.scope not in scopes_list:
+      raise PermissionDenied("Token scope insufficient for this action.")
         
-        # Enforce permission schemes!
-        if token_obj.scope != required_scope and token_obj.scope != "admin_access":
-            raise PermissionDenied("Token scope insufficient for this action.")
-            
-        return token_obj.user
-        
-    except ScopedToken.DoesNotExist:
-        raise PermissionDenied("Invalid or expired token.")
+    return token_obj.user  # Returns the user object cleanly
+      
+  except (ValueError, ScopedToken.DoesNotExist):
+    raise PermissionDenied("Invalid or expired token.")
 
 
 
-@login_required
+# @login_required
+# def get_credentials(request):
+#   user_credentials = Credential.objects.filter(user=request.user).order_by('-id')
+#   serializer = CredentialSerializer(user_credentials, many=True)
+#   return JsonResponse(serializer.data, safe=False) 
+
+# @login_required
+# def get_notes(request):
+#   user_notes = Note.objects.filter(user=request.user).order_by('-id')
+#   serializer = SecuredNotesSerializer(user_notes, many=True)
+#   return JsonResponse(serializer.data, safe=False)
+
+
+
 def get_credentials(request):
-    user_credentials = Credential.objects.filter(user=request.user).order_by('-id')
-    serializer = CredentialSerializer(user_credentials, many=True)
-    return JsonResponse(serializer.data, safe=False) 
+    if request.method == "GET":
+        try:
+            # 1. Authorize the API token scope for either role context
+            token_user = check_token_scope(request, ["write_notes", "admin_access"])
+            
+            # 2. Enforce strict data isolation using the validated token user object
+            user_credentials = Credential.objects.filter(user=token_user).order_by('-id')
+            
+            serializer = CredentialSerializer(user_credentials, many=True)
+            return JsonResponse(serializer.data, safe=False, status=200)
+            
+        except PermissionDenied as error:
+            return JsonResponse({"error": str(error)}, status=403)
+        except Exception as e:
+            return JsonResponse({"error": str(e)}, status=500)
+            
+    return JsonResponse({"error": "Only GET allowed"}, status=405)
 
-@login_required
+
 def get_notes(request):
-    user_notes = Note.objects.filter(user=request.user).order_by('-id')
-    serializer = SecuredNotesSerializer(user_notes, many=True)
-    return JsonResponse(serializer.data, safe=False)
+    if request.method == "GET":
+        try:
+            # 1. Authorize the API token scope for either role context
+            token_user = check_token_scope(request, ["write_notes", "admin_access"])
+            
+            # 2. Enforce strict data isolation using the validated token user object
+            user_notes = Note.objects.filter(user=token_user).order_by('-id')
+            
+            serializer = SecuredNotesSerializer(user_notes, many=True)
+            return JsonResponse(serializer.data, safe=False, status=200)
+            
+        except PermissionDenied as error:
+            return JsonResponse({"error": str(error)}, status=403)
+        except Exception as e:
+            return JsonResponse({"error": str(e)}, status=500)
+            
+    return JsonResponse({"error": "Only GET allowed"}, status=405)
+
 
 
 def home(request):
@@ -118,13 +166,14 @@ def notes_page(request):
 @login_required
 def statistics_page(request):
   if not request.user.is_superuser and not (request.user.role and request.user.role.name == "Admin"):
-      return redirect('home')
+    return redirect('home')
 
   suspicious_logs = UserLog.objects.filter(is_suspicious=True).order_by('-timestamp')
 
   return render(request, 'manager/statistics.html', {
       'suspicious_logs': suspicious_logs
   })
+
 
 
 @api_view(['GET', 'POST'])
@@ -217,11 +266,10 @@ def verify_login_mfa(request):
           
           # Generate the permission scheme token!
           user_token = generate_user_scoped_token(user)
-          
           return Response({
-              "message": "Authorized",
-              "token": str(user_token.token),
-              "scope": user_token.scope
+            "message": "Authorized",
+            "token": str(user_token.token),
+            "scope": user_token.scope
           }, status=200)
             
 
@@ -239,9 +287,9 @@ def verify_login_mfa(request):
             user_token = generate_user_scoped_token(user)
             
             return Response({
-                "message": "Authorized",
-                "token": str(user_token.token),
-                "scope": user_token.scope
+              "message": "Authorized",
+              "token": str(user_token.token),
+              "scope": user_token.scope
             }, status=200)
                 
         return Response({"error": "Invalid code or recovery key"}, status=401)
@@ -250,11 +298,40 @@ def verify_login_mfa(request):
         return Response({"error": "User not found"}, status=404)
 
 
+# @api_view(['POST'])
+# @authentication_classes([SessionAuthentication]) 
+# @permission_classes([IsAuthenticated])
+# def generate_new_codes(request):
+#     EmergencyAccessCode.objects.filter(user=request.user).delete()  # delete any old recovery codes the user generated in the past, we want new ones
+    
+#     raw_codes = []
+#     for _ in range(10):
+#         code = '-'.join(''.join(secrets.choice(string.ascii_uppercase + string.digits) for _ in range(4)) for _ in range(3))
+#         raw_codes.append(code)
+        
+#         EmergencyAccessCode.objects.create(
+#           user=request.user,
+#           code_hash=make_password(code)  # hashing every recovery code generated, so we dont store plain text in the database
+#         )
+    
+#     return Response({'codes': raw_codes}, status=200)
+
+
+
+
 @api_view(['POST'])
-@authentication_classes([SessionAuthentication]) 
+@authentication_classes([SessionAuthentication])
 @permission_classes([IsAuthenticated])
 def generate_new_codes(request):
-    EmergencyAccessCode.objects.filter(user=request.user).delete()  # delete any old recovery codes the user generated in the past, we want new ones
+    # 1. Secondary Gate: Enforce your custom token scope check!
+    # Even if they have a session cookie, they MUST provide a valid X-Scoped-Token header.
+    try:
+        check_token_scope(request, ["write_notes", "admin_access"])
+    except PermissionDenied as error:
+        return Response({"error": str(error)}, status=403)
+
+    # 2. Your existing logic remains completely intact and safe:
+    EmergencyAccessCode.objects.filter(user=request.user).delete()
     
     raw_codes = []
     for _ in range(10):
@@ -262,11 +339,12 @@ def generate_new_codes(request):
         raw_codes.append(code)
         
         EmergencyAccessCode.objects.create(
-          user=request.user,
-          code_hash=make_password(code)  # hashing every recovery code generated, so we dont store plain text in the database
+            user=request.user,
+            code_hash=make_password(code)
         )
-    
+        
     return Response({'codes': raw_codes}, status=200)
+
 
 
 def derive_key(phrase):  # this function transforms the words given by the user as recovery master key, and turns them into a strong cryptographic key
@@ -430,6 +508,7 @@ def get_crypto_key(master_key_string):  # turns the user's master key string int
 def add_credential_view(request):
   if request.method == "POST":
     try:
+        token_user = check_token_scope(request, ["write_notes", "admin_access"])
         master_key = request.headers.get('X-Master-Key')  # extracting the master key from the custom header
         if not master_key:
           return JsonResponse({"error": "Master key is required for encryption"}, status=400)
@@ -451,6 +530,8 @@ def add_credential_view(request):
         else:
           return JsonResponse({"error": serializer.errors}, status=400)
         
+    except PermissionDenied as error:
+      return JsonResponse({"error": str(error)}, status=403)
     except json.JSONDecodeError:
       return JsonResponse({"error": "Invalid JSON format"}, status=400)
     except Exception as e:
@@ -462,6 +543,11 @@ def add_credential_view(request):
 def update_credential_view(request, cred_id):
     if request.method == "PUT":
       try:
+          token_user = check_token_scope(request, ["write_notes", "admin_access"])
+
+          if not Credential.objects.filter(id=cred_id, user=token_user).exists():
+            return JsonResponse({"error": "Unauthorized access to this resource"}, status=403)
+          
           data = json.loads(request.body)
           website = data.get('website_name')
           password = data.get('password')
@@ -470,82 +556,109 @@ def update_credential_view(request, cred_id):
             return JsonResponse({"error": "Fields website_name and password cannot be empty"}, status=400)
 
           updated_item = service.update_credential(cred_id, data)
-          
           if updated_item:
             return JsonResponse(updated_item, status=200)
           else:
             return JsonResponse({"error": "Credential not found"}, status=404)
-
+          
+      except PermissionDenied as error:
+            return JsonResponse({"error": str(error)}, status=403)
       except Exception as e:
           return JsonResponse({"error": str(e)}, status=500)
-
     return JsonResponse({"error": "Only PUT allowed"}, status=405)
 
 
 
 def delete_credential_view(request, cred_id):
-    if request.method == "DELETE":
-        try:
-            success = service.delete_credential(cred_id)
-            if success:
-                return JsonResponse({"message": "Deleted successfully"}, status=200)
-            else:
-                return JsonResponse({"error": "Credential not found"}, status=404)
-                
-        except Exception as e:
-            return JsonResponse({"error": str(e)}, status=500)
-
-    return JsonResponse({"error": "Only DELETE allowed"}, status=405)
+  if request.method == "DELETE":
+    try:
+      token_user = check_token_scope(request, ["write_notes", "admin_access"])
+      success = service.delete_credential(cred_id)
+      if success:
+        return JsonResponse({"message": "Deleted successfully"}, status=200)
+      else:
+        return JsonResponse({"error": "Credential not found"}, status=404)
+            
+    except Exception as e:
+      return JsonResponse({"error": str(e)}, status=500)
+  return JsonResponse({"error": "Only DELETE allowed"}, status=405)
 
 
 
 def add_note_view(request):
   if request.method == "POST":
-    data = json.loads(request.body)  # parsing the incoming JSON
-    serializer = SecuredNotesSerializer(data=data) # giving the data to the serializer
-    if serializer.is_valid():
-      new_note = serializer.save(user=request.user)
-      print("!!! TEST: I AM ABOUT TO LOG !!!")
-      return JsonResponse(SecuredNotesSerializer(new_note).data, status=201) # returning the data as JSON
-    else:
-      return JsonResponse({"error": serializer.errors}, status=400)
+    try:
+      token_user = check_token_scope(request, ["write_notes", "admin_access"])
+      
+      data = json.loads(request.body)
+      serializer = SecuredNotesSerializer(data=data)
+      
+      if serializer.is_valid():
+        new_note = serializer.save(user=token_user)
+        return JsonResponse(SecuredNotesSerializer(new_note).data, status=201)
+      else:
+        return JsonResponse({"error": serializer.errors}, status=400)
+            
+    except PermissionDenied as error:
+      return JsonResponse({"error": str(error)}, status=403)
+    except json.JSONDecodeError:
+      return JsonResponse({"error": "Invalid JSON format"}, status=400)
+    except Exception as e:
+      return JsonResponse({"error": str(e)}, status=500)
   return JsonResponse({"error": "Only POST allowed"}, status=405)
 
 
 
 def update_note_view(request, cred_id):
-    if request.method == "PUT":
-        try:
-            token_user = check_token_scope(request, "write_notes")
+  if request.method == "PUT":
+    try:
+        token_user = check_token_scope(request, ["write_notes", "admin_access"])
+        
+        if not Note.objects.filter(id=cred_id, user=token_user).exists():
+          return JsonResponse({"error": "Unauthorized access to this resource"}, status=403)
             
-            data = json.loads(request.body)
-            headline = data.get('headline')
-            bodytext = data.get('bodytext')
-            if headline == "" or bodytext == "":
-              return JsonResponse({"error": "Fields headline and bodytext cannot be empty"}, status=400)
+        data = json.loads(request.body)
+        headline = data.get('headline')
+        bodytext = data.get('bodytext')
+        
+        if headline == "" or bodytext == "":
+          return JsonResponse({"error": "Fields headline and bodytext cannot be empty"}, status=400)
+            
+        updated_item = service.update_note(cred_id, data)
+        if updated_item:
+          return JsonResponse(updated_item, status=200)
+        else:
+          return JsonResponse({"error": "Note not found"}, status=404)
+              
+    except PermissionDenied as error:
+      return JsonResponse({"error": str(error)}, status=403)
+    except Exception as e:
+      return JsonResponse({"error": str(e)}, status=500)
+        
+  return JsonResponse({"error": "Only PUT allowed"}, status=405)
 
-            updated_item = service.update_note(cred_id, data)
-            if updated_item:
-                return JsonResponse(updated_item, status=200)
-            else:
-                return JsonResponse({"error": "Note not found"}, status=404)
-        except Exception as e:
-            return JsonResponse({"error": str(e)}, status=500)
-    return JsonResponse({"error": "Only PUT allowed"}, status=405)
+
 
 
 def delete_note_view(request, note_id):
-    if request.method == "DELETE":
-        try:
-            success = service.delete_note(note_id)
-            if success:
-              return JsonResponse({"message": "Deleted successfully"}, status=200)
-            else:
-              return JsonResponse({"error": "Note not found"}, status=404)
-        except Exception as e:
-            return JsonResponse({"error": str(e)}, status=500)
-
-    return JsonResponse({"error": "Only DELETE allowed"}, status=405)
+  if request.method == "DELETE":
+    try:
+      token_user = check_token_scope(request, ["write_notes", "admin_access"])
+      
+      if not Note.objects.filter(id=note_id, user=token_user).exists():
+        return JsonResponse({"error": "Unauthorized access to this resource"}, status=403)
+          
+      success = service.delete_note(note_id)
+      if success:
+        return JsonResponse({"message": "Deleted successfully"}, status=200)
+      else:
+        return JsonResponse({"error": "Note not found"}, status=404)
+            
+    except PermissionDenied as error:
+      return JsonResponse({"error": str(error)}, status=403)
+    except Exception as e:
+      return JsonResponse({"error": str(e)}, status=500)
+  return JsonResponse({"error": "Only DELETE allowed"}, status=405)
 
 
 
@@ -810,7 +923,6 @@ class NotesDetailView(APIView):
     return Response({"error": "Already deleted or never existed"}, status=status.HTTP_404_NOT_FOUND)   
 
 
-@login_required
 @role_required("full_perms")
 def api_statistics(request):
   try:
@@ -830,7 +942,6 @@ def api_statistics(request):
   
 
 
-@login_required
 @role_required("full_perms")
 def api_security_stats(request):
   try:

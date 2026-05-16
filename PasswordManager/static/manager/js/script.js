@@ -25,6 +25,7 @@ document.getElementById('generate-codes-btn').addEventListener('click', function
         headers: {
             'X-CSRFToken': getCookie('csrftoken'), 
             'Content-Type': 'application/json',
+            'X-Scoped-Token': sessionStorage.getItem('scoped_api_token'),
             'X-CSRFToken': csrftoken
         },
         credentials: 'include'
@@ -80,17 +81,21 @@ async function loadCredentialsFromServer() {
         const response = await fetch('/api/credentials/', {
             method: 'GET',
             headers: {
-                'X-Master-Key': userMasterKey   // sending the key we got from the prompt
+                'Content-Type': 'application/json',
+                'X-Master-Key': userMasterKey,
+                'X-Scoped-Token': sessionStorage.getItem('scoped_api_token')
             },
-            credentials: 'include' // important to show only this user's data
+            credentials: 'include' 
         });
+        
         if (response.ok) {
             const data = await response.json();
             credentials_list = Array.isArray(data) ? data : (data.results || []);
             renderList();
-        }
-        else if (response.status == 400) {
+        } else if (response.status === 400) {
             alert("Master Key is required to view credentials!");
+        } else if (response.status === 403) {
+            alert("Session unauthorized or expired. Please re-authenticate.");
         }
     } catch (error) {
         console.error("Failed to load credentials:", error);
@@ -303,6 +308,7 @@ async function saveNewItem() {
                 'Content-Type': 'application/json',
                 'X-CSRFToken': getCookie('csrftoken'),
                 'X-Requested-With': 'XMLHttpRequest',
+                'X-Scoped-Token': sessionStorage.getItem('scoped_api_token'),
                 'X-Master-Key': userMasterKey
             },
             body: JSON.stringify(newEntry),
@@ -358,7 +364,8 @@ async function deleteItem(id) {
             method: 'DELETE',
             headers: {
                 'X-CSRFToken': getCookie('csrftoken'), 
-                'Content-Type': 'application/json'
+                'Content-Type': 'application/json',
+                'X-Scoped-Token': sessionStorage.getItem('scoped_api_token'),
             }
         });
 
@@ -441,6 +448,7 @@ async function saveUpdate(id) {
             headers: { 
                 'Content-Type': 'application/json',
                 'X-CSRFToken': getCookie('csrftoken'),
+                'X-Scoped-Token': sessionStorage.getItem('scoped_api_token'),
                 'X-Master-Key': userMasterKey
             },
             body: JSON.stringify(updatedData)

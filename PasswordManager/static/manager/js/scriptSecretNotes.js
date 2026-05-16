@@ -10,7 +10,8 @@ async function fetchNotes() {
         const response = await fetch('/api/notes/', {
             method: 'GET',
             headers: {
-                'X-Master-Key': userMasterKey 
+                'X-Master-Key': userMasterKey,
+                'X-Scoped-Token': sessionStorage.getItem('scoped_api_token')
             },
             credentials: 'include'
         });
@@ -188,6 +189,7 @@ async function saveNewItem() {
                 'Content-Type': 'application/json',
                 'X-CSRFToken': getCookie('csrftoken'),
                 'X-Requested-With': 'XMLHttpRequest',
+                'X-Scoped-Token': sessionStorage.getItem('scoped_api_token'),
                 'X-Master-Key': userMasterKey
             },
             body: JSON.stringify(noteData),
@@ -233,6 +235,7 @@ async function deleteItem(id) {
             method: 'DELETE',
             headers: {
                 'X-CSRFToken': getCookie('csrftoken'),
+                'X-Scoped-Token': sessionStorage.getItem('scoped_api_token'),
                 'Content-Type': 'application/json'
             }
         });
@@ -296,6 +299,7 @@ async function saveUpdate(id) {
             headers: { 
                 'Content-Type': 'application/json',
                 'X-CSRFToken': getCookie('csrftoken'),
+                'X-Scoped-Token': sessionStorage.getItem('scoped_api_token'),
                 'X-Master-Key': userMasterKey
             },
             body: JSON.stringify(updatedData)

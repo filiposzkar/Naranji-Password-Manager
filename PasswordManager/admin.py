@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Credential, Note, Role, Permission, CustomUser, UserLog
+from .models import Credential, Note, Role, Permission, CustomUser, UserLog, ScopedToken
 
 # admin.site.register(Credential)
 # admin.site.register(Note)
@@ -17,6 +17,12 @@ class NoteAdmin(admin.ModelAdmin):
 @admin.register(UserLog)
 class UserLogAdmin(admin.ModelAdmin):
     list_display = ('user', 'group', 'action', 'timestamp', 'is_suspicious')
+
+@admin.register(ScopedToken)
+class ScopedTokenAdmin(admin.ModelAdmin):
+    list_display = ('user', 'scope', 'token', 'expires_at', 'is_revoked')
+    list_filter = ('scope', 'is_revoked')
+    search_fields = ('user__username', 'token')
 
 # Register the model with the custom admin class
 admin.site.register(Credential, CredentialAdmin)
