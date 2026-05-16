@@ -34,6 +34,31 @@ from django.contrib.auth.hashers import make_password
 from .models import EmergencyAccessCode
 from rest_framework.decorators import permission_classes, authentication_classes
 from django.views.decorators.csrf import csrf_protect
+from functools import wraps
+
+
+
+def role_required(codename):
+    """
+    Custom decorator checking if a user has a specific permission codename
+    linked to their Role before letting them access a view.
+    """
+    def decorator(view_func):
+        @wraps(view_func)
+        def _wrapped_view(request, *args, **kwargs):
+            if not request.user.is_authenticated:
+                return JsonResponse({"status": "error", "message": "Authentication required"}, status=401)
+            
+            print(f"DEBUG: User '{request.user.username}' has role '{request.user.role}' and perms: {[p.codename for p in request.user.role.permissions.all()] if request.user.role else 'No Role Assigned'}")
+
+            # This calls your model's exact method: self.role.permissions.filter(codename=codename).exists()
+            if not request.user.has_custom_permission(codename):
+                return JsonResponse({"status": "error", "message": "Access Denied: Unauthorized role."}, status=403)
+            
+            return view_func(request, *args, **kwargs)
+        return _wrapped_view
+    return decorator
+
 
 
 @login_required
@@ -517,6 +542,7 @@ class CredentialDetailView(APIView):
         return Response(serializer.data)
       return Response({"error": "Credential not found"}, status=status.HTTP_404_NOT_FOUND)
     
+
     def put(self, request, pk):
       credential = get_object_or_404(Credential, pk=pk, user=request.user)
       master_key = request.headers.get('X-Master-Key')
@@ -681,6 +707,8 @@ class NotesDetailView(APIView):
     return Response({"error": "Already deleted or never existed"}, status=status.HTTP_404_NOT_FOUND)   
 
 
+@login_required
+@role_required("full_perms")
 def api_statistics(request):
   cred_count = Credential.objects.count()
   note_count = Note.objects.count()
@@ -691,6 +719,8 @@ def api_statistics(request):
   })
 
 
+@login_required
+@role_required("full_perms")
 def api_security_stats(request): # counting how many total logs are clean vs. flagged
   suspicious_count = UserLog.objects.filter(is_suspicious=True).count()
   safe_count = UserLog.objects.filter(is_suspicious=False).count()
@@ -712,7 +742,6 @@ def observation_list(request):  # this functions displays the suspicious events
   return render(request, 'manager/statistics.html', {
     'suspicious-logs': suspicious_logs
   })
-
 
 
 class EnableMFAView(APIView):
