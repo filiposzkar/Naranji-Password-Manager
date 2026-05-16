@@ -9,7 +9,7 @@ from django.http import JsonResponse
 from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import csrf_exempt
 import json
-from .models import Credential, Note, CustomUser, UserLog, Role, EmergencyAccessCode, RecoveryKey
+from .models import Credential, Note, CustomUser, UserLog, Role, EmergencyAccessCode, RecoveryKey, ScopedToken
 from django.db.models import Count
 from django.contrib.auth import authenticate, login
 from django.contrib.auth.decorators import login_required
@@ -35,6 +35,10 @@ from .models import EmergencyAccessCode
 from rest_framework.decorators import permission_classes, authentication_classes
 from django.views.decorators.csrf import csrf_protect
 from functools import wraps
+import uuid
+from django.utils import timezone
+from datetime import timedelta
+
 
 
 
@@ -47,13 +51,13 @@ def role_required(codename):
         @wraps(view_func)
         def _wrapped_view(request, *args, **kwargs):
             if not request.user.is_authenticated:
-                return JsonResponse({"status": "error", "message": "Authentication required"}, status=401)
+              return JsonResponse({"status": "error", "message": "Authentication required"}, status=401)
             
             print(f"DEBUG: User '{request.user.username}' has role '{request.user.role}' and perms: {[p.codename for p in request.user.role.permissions.all()] if request.user.role else 'No Role Assigned'}")
 
-            # This calls your model's exact method: self.role.permissions.filter(codename=codename).exists()
+            # calls the model's exact method: self.role.permissions.filter(codename=codename).exists()
             if not request.user.has_custom_permission(codename):
-                return JsonResponse({"status": "error", "message": "Access Denied: Unauthorized role."}, status=403)
+              return JsonResponse({"status": "error", "message": "Access Denied: Unauthorized role."}, status=403)
             
             return view_func(request, *args, **kwargs)
         return _wrapped_view
@@ -118,33 +122,100 @@ def login_view(request):
 
 
 
+# @api_view(['POST'])
+# def verify_login_mfa(request):
+#     username = request.data.get('username')
+#     code = request.data.get('code')  # this could be either the 6-digit code or the recovery 10-digit code
+    
+#     try:
+#         user = CustomUser.objects.get(username=username)
+        
+#         # trying the 6-digit code first
+#         totp = pyotp.TOTP(user.mfa_secret)
+#         if totp.verify(code):
+#             login(request, user) # Success! Start the session
+#             return Response({"message": "Authorized"}, status=200)
+        
+#         # if MFA fails, we are trying the Emergency Recovery Code, the 10-digit code
+#         # looking for unused codes for this user
+#         recovery_codes = EmergencyAccessCode.objects.filter(user=user, used=False)
+#         for recovery_obj in recovery_codes:
+#             if check_password(code, recovery_obj.code_hash): # checking if the code the user typed matches this stored hash
+#                 recovery_obj.used = True  # success, so we "destroy" the code so it can't be used again
+#                 recovery_obj.save()
+                
+#                 login(request, user)
+#                 return Response({"message": "Authorized"}, status=200)
+            
+#         return Response({"error": "Invalid code or recovery key"}, status=401)
+            
+#     except CustomUser.DoesNotExist:
+#         return Response({"error": "User not found"}, status=404)
+    
+
+
 @api_view(['POST'])
 def verify_login_mfa(request):
     username = request.data.get('username')
-    code = request.data.get('code')  # this could be either the 6-digit code or the recovery 10-digit code
+    code = request.data.get('code')
     
     try:
         user = CustomUser.objects.get(username=username)
         
+        # Helper function to generate tokens automatically on success
+        def generate_user_scoped_token(authenticated_user):
+          # Check permissions string dynamically from the user's database role
+          if authenticated_user.role and authenticated_user.role.name == "Admin":
+            token_scope = "admin_access"
+          else:
+            token_scope = "write_notes" # or matching scheme from your scopes list
+              
+          # Create the database record
+          new_token = ScopedToken.objects.create(
+            user=authenticated_user,
+            token=uuid.uuid4(),
+            scope=token_scope,
+            expires_at=timezone.now() + timedelta(hours=2) # Token is active for 2 hours
+          )
+          return new_token
+
+
         # trying the 6-digit code first
         totp = pyotp.TOTP(user.mfa_secret)
         if totp.verify(code):
-            login(request, user) # Success! Start the session
-            return Response({"message": "Authorized"}, status=200)
-        
+          login(request, user) # Existing session registration
+          
+          # Generate the permission scheme token!
+          user_token = generate_user_scoped_token(user)
+          
+          return Response({
+              "message": "Authorized",
+              "token": str(user_token.token),
+              "scope": user_token.scope
+          }, status=200)
+            
+
         # if MFA fails, we are trying the Emergency Recovery Code, the 10-digit code
         # looking for unused codes for this user
         recovery_codes = EmergencyAccessCode.objects.filter(user=user, used=False)
         for recovery_obj in recovery_codes:
-            if check_password(code, recovery_obj.code_hash): # checking if the code the user typed matches this stored hash
-                recovery_obj.used = True  # success, so we "destroy" the code so it can't be used again
-                recovery_obj.save()
+          if check_password(code, recovery_obj.code_hash):  # checking if the code the user typed matches this stored hash
+            recovery_obj.used = True  # success, so we "destroy" the code so it can't be used again
+            recovery_obj.save()
+            
+            login(request, user) # Existing session registration
+            
+            # Generate the permission scheme token here too!
+            user_token = generate_user_scoped_token(user)
+            
+            return Response({
+                "message": "Authorized",
+                "token": str(user_token.token),
+                "scope": user_token.scope
+            }, status=200)
                 
-                login(request, user)
-                return Response({"message": "Authorized"}, status=200)
-            
         return Response({"error": "Invalid code or recovery key"}, status=401)
-            
+        
     except CustomUser.DoesNotExist:
         return Response({"error": "User not found"}, status=404)
 
