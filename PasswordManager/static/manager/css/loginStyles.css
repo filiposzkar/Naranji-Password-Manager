@@ -97,4 +97,24 @@ body {
 }
 
 
+#verify-mfa-button {
+  height: 30px;
+  width: 200px;
+  border: none;
+  cursor: pointer;
+  border-radius: 15px;
+  background-color: #5A7011;
+  color:#FFF8CE;
+  margin-left: -10px;
+}
 
+
+#verify-mfa-button:hover {
+  background-color:#223809;
+  color:#FFF8CE;
+}
+
+#login-step-2{
+  margin-top: 50px;
+  margin-right: 150px;
+}

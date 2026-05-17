@@ -115,10 +115,8 @@
 
                         <div class="edit-and-delete">
                             <button id="save-button">Save</button>
-                            {% if user.is_superuser or user.role.name == "Admin" %}
-                                <button id="edit-button" onclick="startEnding()">Edit</button>
-                                <button id="delete-button" onclick="deleteItem()">Delete Item</button>
-                            {% endif %}
+                            <button id="edit-button" onclick="startEnding()">Edit</button>
+                            <button id="delete-button" onclick="deleteItem()">Delete Item</button>
                         </div>
 
                     </div>
