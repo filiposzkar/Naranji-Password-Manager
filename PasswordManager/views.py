@@ -134,10 +134,11 @@ def get_notes(request):
   return JsonResponse({"error": "Only GET allowed"}, status=405)
 
 
-
+@login_required
 def home(request):
   return render(request, 'manager/index.html')
 
+@login_required
 def notes_page(request):
   return render(request, 'manager/secretNotes.html')
 
