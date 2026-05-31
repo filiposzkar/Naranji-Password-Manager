@@ -3,3 +3,8 @@ playwright
 pytest-playwright
 djangorestframework
 django-cors-headers
+whitenoise
+gunicorn
+channels
+channels-redis
+daphne
