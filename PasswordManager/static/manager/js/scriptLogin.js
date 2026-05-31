@@ -70,7 +70,7 @@ document.getElementById('auth-form').addEventListener('submit', async (e) => {
     const username = document.getElementById('given-username').value;
     const password = document.getElementById('given-password').value;
 
-    const response = await fetch('/login/', {
+    const response = await fetch('/api/auth/login/', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCookie('csrftoken') },
         body: JSON.stringify({ username, password })

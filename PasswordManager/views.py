@@ -155,74 +155,89 @@ def statistics_page(request):
   })
 
 
+def login_page_view(request):
+    return render(request, 'manager/login.html')
 
-# @api_view(['GET', 'POST'])
-# def login_view(request):
-
-#   if request.method == 'GET':
-#     return render(request, 'manager/login.html')
-  
-#   username = request.data.get('username')
-#   password = request.data.get('password')
-#   user = authenticate(request, username=username, password=password)
-  
-#   if user is not None:
-#     if user.is_mfa_enabled:
-#       return Response({
-#         "mfa_required": True,
-#         "username": user.username 
-#       }, status=200)
-    
-#     login(request, user)
-#     return Response({"mfa_required": False}, status=200)
-
-#   return Response({"error": "Invalid username or password"}, status=401)
-
-
-
-@api_view(['GET', 'POST'])
-def login_view(request):
-    if request.method == 'GET':
-        return render(request, 'manager/login.html')
-    
+@api_view(['POST'])
+def login_api_endpoint(request):
     username = request.data.get('username')
     password = request.data.get('password')
     
     user = authenticate(request, username=username, password=password)
     
     if user is not None:
-        # Phase 1: Check if the user has a Multi-Factor Device enabled
         if user.is_mfa_enabled:
             return Response({
                 "mfa_required": True,
                 "username": user.username 
             }, status=200)
         
-        # Phase 2 Fallback: If no MFA is active, log them in instantly via session cookie
         login(request, user)
         
-        # Determine the user's explicit permission scope context dynamically
         if user.role and user.role.name == "Admin":
             token_scope = "admin_access"
         else:
             token_scope = "write_notes"
         
-        # Generate and save the scoped token database row for non-MFA users
         user_token = ScopedToken.objects.create(
             user=user,
             token=uuid.uuid4(),
             scope=token_scope,
-            expires_at=timezone.now() + timedelta(hours=2) # Token expires in 2 hours
+            expires_at=timezone.now() + timedelta(hours=2)
         )
         
-        # Return both the session status flag AND the necessary auth token payload!
         return Response({
             "mfa_required": False,
-            "token": str(user_token.token),  # John's browser can now grab and save this!
+            "token": str(user_token.token),
             "scope": user_token.scope
         }, status=200)
 
     return Response({"error": "Invalid username or password"}, status=401)
+
+
+# @api_view(['GET', 'POST'])
+# def login_view(request):
+#     if request.method == 'GET':
+#         return render(request, 'manager/login.html')
+    
+#     username = request.data.get('username')
+#     password = request.data.get('password')
+    
+#     user = authenticate(request, username=username, password=password)
+    
+#     if user is not None:
+#         # Phase 1: Check if the user has a Multi-Factor Device enabled
+#         if user.is_mfa_enabled:
+#             return Response({
+#                 "mfa_required": True,
+#                 "username": user.username 
+#             }, status=200)
+        
+#         # Phase 2 Fallback: If no MFA is active, log them in instantly via session cookie
+#         login(request, user)
+        
+#         # Determine the user's explicit permission scope context dynamically
+#         if user.role and user.role.name == "Admin":
+#             token_scope = "admin_access"
+#         else:
+#             token_scope = "write_notes"
+        
+#         # Generate and save the scoped token database row for non-MFA users
+#         user_token = ScopedToken.objects.create(
+#             user=user,
+#             token=uuid.uuid4(),
+#             scope=token_scope,
+#             expires_at=timezone.now() + timedelta(hours=2) # Token expires in 2 hours
+#         )
+        
+#         # Return both the session status flag AND the necessary auth token payload!
+#         return Response({
+#             "mfa_required": False,
+#             "token": str(user_token.token),  # John's browser can now grab and save this!
+#             "scope": user_token.scope
+#         }, status=200)
+
+#     return Response({"error": "Invalid username or password"}, status=401)
 
 
 
