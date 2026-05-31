@@ -147,6 +147,10 @@ CHANNEL_LAYERS = {
     },
 }
 
+CSRF_TRUSTED_ORIGINS = [
+    'https://naranji-password-manager.onrender.com',
+]
+
 
 SESSION_COOKIE_SECURE = True
 CSRF_COOKIE_SECURE = True
