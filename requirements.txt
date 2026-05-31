@@ -5,6 +5,8 @@ djangorestframework
 django-cors-headers
 whitenoise
 gunicorn
+pyotp
+qrcode
 channels
 channels-redis
 daphne
