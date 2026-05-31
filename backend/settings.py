@@ -153,3 +153,4 @@ CSRF_COOKIE_SECURE = True
 SESSION_EXPIRE_AT_BROWSER_CLOSE = True
 SESSION_COOKIE_AGE = 600  # Logout after 10 minutes of inactivity
 LOGIN_URL = '/login/'
+LOGIN_REDIRECT_URL = '/'

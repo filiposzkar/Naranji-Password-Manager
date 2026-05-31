@@ -134,16 +134,16 @@ def get_notes(request):
   return JsonResponse({"error": "Only GET allowed"}, status=405)
 
 
-@login_required
+@login_required(login_url='/login/')
 def home(request):
   return render(request, 'manager/index.html')
 
-@login_required
+@login_required(login_url='/login/')
 def notes_page(request):
   return render(request, 'manager/secretNotes.html')
 
 
-@login_required
+@login_required(login_url='/login/')
 def statistics_page(request):
   if not request.user.is_superuser and not (request.user.role and request.user.role.name == "Admin"):
     return redirect('home')
