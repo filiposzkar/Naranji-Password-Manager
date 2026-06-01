@@ -175,46 +175,6 @@ def login_api_endpoint(request):
   return Response({"error": "Invalid username or password"}, status=401)
 
 
-
-
-# @api_view(['POST'])
-# def login_api_endpoint(request):
-#     username = request.data.get('username')
-#     password = request.data.get('password')
-    
-#     user = authenticate(request, username=username, password=password)
-    
-#     if user is not None:
-#       if user.is_mfa_enabled:
-#         return Response({
-#           "mfa_required": True,
-#           "username": user.username 
-#         }, status=200)
-      
-#       login(request, user)
-      
-#       if user.role and user.role.name == "Admin":
-#         token_scope = "admin_access"
-#       else:
-#         token_scope = "write_notes"
-      
-#       user_token = ScopedToken.objects.create(
-#         user=user,
-#         token=uuid.uuid4(),
-#         scope=token_scope,
-#         expires_at=timezone.now() + timedelta(hours=2)
-#       )
-      
-#       return Response({
-#         "mfa_required": False,
-#         "token": str(user_token.token),
-#         "scope": user_token.scope
-#       }, status=200)
-
-#     return Response({"error": "Invalid username or password"}, status=401)
-
-
-
 @api_view(['POST'])
 def verify_login_mfa(request):
     username = request.data.get('username')
@@ -222,21 +182,19 @@ def verify_login_mfa(request):
     
     try:
         user = CustomUser.objects.get(username=username)
-        
-        # Helper function to generate tokens automatically on success
+
+        # helper function to generate tokens automatically on success
         def generate_user_scoped_token(authenticated_user):
-          # Check permissions string dynamically from the user's database role
           if authenticated_user.role and authenticated_user.role.name == "Admin":
             token_scope = "admin_access"
           else:
-            token_scope = "write_notes" # or matching scheme from your scopes list
+            token_scope = "write_notes"
               
-          # Create the database record
           new_token = ScopedToken.objects.create(
             user=authenticated_user,
             token=uuid.uuid4(),
             scope=token_scope,
-            expires_at=timezone.now() + timedelta(hours=2) # Token is active for 2 hours
+            expires_at=timezone.now() + timedelta(hours=2) # token is active for 2 hours
           )
           return new_token
 
@@ -246,7 +204,7 @@ def verify_login_mfa(request):
         if totp.verify(code):
           login(request, user) # Existing session registration
           
-          # Generate the permission scheme token!
+          # generating the permission scheme token
           user_token = generate_user_scoped_token(user)
           return Response({
             "message": "Authorized",
@@ -395,7 +353,7 @@ def register_view(request):
       
       default_role = Role.objects.filter(name="Normal User").first()
 
-      user_mfa_secret = pyotp.random_base32()
+      user_mfa_secret = pyotp.random_base32()  # this line generates the secret key (random 32-character string)
 
       new_user = CustomUser.objects.create_user(
         username=username,

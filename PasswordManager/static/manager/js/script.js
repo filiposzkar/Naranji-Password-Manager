@@ -94,8 +94,14 @@ async function loadCredentialsFromServer() {
             renderList();
         } else if (response.status === 400) {
             alert("Master Key is required to view credentials!");
+            
+            sessionStorage.removeItem('master_key');
+            sessionStorage.removeItem('scoped_api_token');
+            sessionStorage.removeItem('vault_canary');
+            window.location.href = '/login/';
         } else if (response.status === 403) {
             alert("Session unauthorized or expired. Please re-authenticate.");
+            window.location.href = '/login/';
         }
     } catch (error) {
         console.error("Failed to load credentials:", error);

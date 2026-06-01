@@ -21,6 +21,11 @@ async function fetchNotes() {
             renderList(); 
         } else if (response.status === 401) {
             alert("Master Key is invalid or missing for Notes!");
+            
+            sessionStorage.removeItem('master_key');
+            sessionStorage.removeItem('scoped_api_token');
+            sessionStorage.removeItem('vault_canary');
+            window.location.href = '/login/';
         }
     } catch (error) {
         console.error("Error fetching notes:", error);
