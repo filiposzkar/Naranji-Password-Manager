@@ -13,29 +13,67 @@ function getCookie(name) {
     return cookieValue;
 }
 
+// async function handleSignUp() {
+//     const username = document.getElementById('given-username').value;
+//     const email = document.getElementById('given-email').value;
+//     const password = document.getElementById('given-password').value;
+
+//     const response = await fetch('/register/', {
+//         method: 'POST',
+//         headers: {
+//             'Content-Type': 'application/json',
+//             'X-CSRFToken': getCookie('csrftoken'),
+//         },
+//         body: JSON.stringify({
+//             username: username,
+//             email: email,
+//             password: password
+//         })
+//     });
+
+//     if (response.ok) {
+//         alert("Account created! Now login and set your Master Key.");
+//         window.location.href = "/login/";
+//     } else {
+//         const error = await response.json();
+//         alert("Signup failed: " + error.error);
+//     }
+// }
+
+
 async function handleSignUp() {
     const username = document.getElementById('given-username').value;
     const email = document.getElementById('given-email').value;
     const password = document.getElementById('given-password').value;
 
-    const response = await fetch('/register/', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'X-CSRFToken': getCookie('csrftoken'),
-        },
-        body: JSON.stringify({
-            username: username,
-            email: email,
-            password: password
-        })
-    });
+    try {
+        const response = await fetch('/register/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCookie('csrftoken'),
+            },
+            body: JSON.stringify({
+                username: username,
+                email: email,
+                password: password
+            })
+        });
 
-    if (response.ok) {
-        alert("Account created! Now login and set your Master Key.");
-        window.location.href = "/login/";
-    } else {
-        const error = await response.json();
-        alert("Signup failed: " + error.error);
+        const data = await response.json();
+
+        if (response.ok) {
+            document.getElementById('mfaSecretString').innerText = data.mfa_secret_key; // injecting the secret key into the text holder inside the modal            
+            document.getElementById('mfaModal').style.display = 'flex';
+        } else {
+            alert("Signup failed: " + (data.error || "Unknown error"));
+        }
+    } catch (error) {
+        console.error("Network error during signup:", error);
+        alert("An error occurred. Please try again later.");
     }
+}
+
+function redirectToLogin() {
+    window.location.href = "/login/";
 }

@@ -118,3 +118,23 @@ body {
   margin-top: 50px;
   margin-right: 150px;
 }
+
+#dont-have-account {
+  margin-left: -50px;
+  margin-top: 45px;        
+  font-size: 1.1rem;       
+  color: #333333;  
+  font-family: 'Wavehaus', sans-serif;        
+}
+
+#signup-link {
+  color: #62b108;          
+  font-weight: bold;       
+  font-size: 1.15rem;      
+  text-decoration: underline; 
+  font-family: 'Wavehaus', sans-serif;
+}
+
+#signup-link:hover {
+  color: #3d4f21;           
+}

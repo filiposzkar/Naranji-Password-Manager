@@ -156,86 +156,60 @@ def statistics_page(request):
 
 
 def login_page_view(request):
-    return render(request, 'manager/login.html')
+  return render(request, 'manager/login.html')
+
 
 @api_view(['POST'])
 def login_api_endpoint(request):
-    username = request.data.get('username')
-    password = request.data.get('password')
-    
-    user = authenticate(request, username=username, password=password)
-    
-    if user is not None:
-        if user.is_mfa_enabled:
-            return Response({
-                "mfa_required": True,
-                "username": user.username 
-            }, status=200)
-        
-        login(request, user)
-        
-        if user.role and user.role.name == "Admin":
-            token_scope = "admin_access"
-        else:
-            token_scope = "write_notes"
-        
-        user_token = ScopedToken.objects.create(
-            user=user,
-            token=uuid.uuid4(),
-            scope=token_scope,
-            expires_at=timezone.now() + timedelta(hours=2)
-        )
-        
-        return Response({
-            "mfa_required": False,
-            "token": str(user_token.token),
-            "scope": user_token.scope
-        }, status=200)
+  username = request.data.get('username')
+  password = request.data.get('password')
+  
+  user = authenticate(request, username=username, password=password)
+  
+  if user is not None:
+    return Response({
+      "mfa_required": True,
+      "username": user.username 
+    }, status=200)
 
-    return Response({"error": "Invalid username or password"}, status=401)
+  return Response({"error": "Invalid username or password"}, status=401)
 
 
-# @api_view(['GET', 'POST'])
-# def login_view(request):
-#     if request.method == 'GET':
-#         return render(request, 'manager/login.html')
-    
+
+
+# @api_view(['POST'])
+# def login_api_endpoint(request):
 #     username = request.data.get('username')
 #     password = request.data.get('password')
     
 #     user = authenticate(request, username=username, password=password)
     
 #     if user is not None:
-#         # Phase 1: Check if the user has a Multi-Factor Device enabled
-#         if user.is_mfa_enabled:
-#             return Response({
-#                 "mfa_required": True,
-#                 "username": user.username 
-#             }, status=200)
-        
-#         # Phase 2 Fallback: If no MFA is active, log them in instantly via session cookie
-#         login(request, user)
-        
-#         # Determine the user's explicit permission scope context dynamically
-#         if user.role and user.role.name == "Admin":
-#             token_scope = "admin_access"
-#         else:
-#             token_scope = "write_notes"
-        
-#         # Generate and save the scoped token database row for non-MFA users
-#         user_token = ScopedToken.objects.create(
-#             user=user,
-#             token=uuid.uuid4(),
-#             scope=token_scope,
-#             expires_at=timezone.now() + timedelta(hours=2) # Token expires in 2 hours
-#         )
-        
-#         # Return both the session status flag AND the necessary auth token payload!
+#       if user.is_mfa_enabled:
 #         return Response({
-#             "mfa_required": False,
-#             "token": str(user_token.token),  # John's browser can now grab and save this!
-#             "scope": user_token.scope
+#           "mfa_required": True,
+#           "username": user.username 
 #         }, status=200)
+      
+#       login(request, user)
+      
+#       if user.role and user.role.name == "Admin":
+#         token_scope = "admin_access"
+#       else:
+#         token_scope = "write_notes"
+      
+#       user_token = ScopedToken.objects.create(
+#         user=user,
+#         token=uuid.uuid4(),
+#         scope=token_scope,
+#         expires_at=timezone.now() + timedelta(hours=2)
+#       )
+      
+#       return Response({
+#         "mfa_required": False,
+#         "token": str(user_token.token),
+#         "scope": user_token.scope
+#       }, status=200)
 
 #     return Response({"error": "Invalid username or password"}, status=401)
 
@@ -312,14 +286,11 @@ def verify_login_mfa(request):
 @authentication_classes([SessionAuthentication])
 @permission_classes([IsAuthenticated])
 def generate_new_codes(request):
-    # 1. Secondary Gate: Enforce your custom token scope check!
-    # Even if they have a session cookie, they MUST provide a valid X-Scoped-Token header.
     try:
         check_token_scope(request, ["write_notes", "admin_access"])
     except PermissionDenied as error:
         return Response({"error": str(error)}, status=403)
 
-    # 2. Your existing logic remains completely intact and safe:
     EmergencyAccessCode.objects.filter(user=request.user).delete()
     
     raw_codes = []
@@ -424,13 +395,20 @@ def register_view(request):
       
       default_role = Role.objects.filter(name="Normal User").first()
 
+      user_mfa_secret = pyotp.random_base32()
+
       new_user = CustomUser.objects.create_user(
         username=username,
         email=email,
         password=password,
-        role=default_role
+        role=default_role,
+        is_mfa_enabled=True,
+        mfa_secret=user_mfa_secret
       )
-      return JsonResponse({"message": "Registration successful!"}, status=201)
+      return JsonResponse({
+        "message": "Registration successful!",
+        "mfa_secret_key": user_mfa_secret 
+      }, status=201)
 
     except Exception as e:
       return JsonResponse({"error": str(e)}, status=500)

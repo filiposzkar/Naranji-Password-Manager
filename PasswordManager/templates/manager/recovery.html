@@ -19,6 +19,10 @@
         <textarea id="recovery-phrase" placeholder="Enter your 12-word phrase here..."></textarea>
         
         <button id="recover-btn">Recover Master Key</button>
+
+        <p id="back-to-login">
+            Got the master key? <a href="{% url 'login' %}" id="login-link">Log In</a>
+        </p>
         
         <div id="master-key-display" style="display:none; margin-top: 20px; padding: 15px; border: 2px solid green;">
             <p><strong>Your Master Key:</strong> <span id="key-text" style="color: green; font-weight: bold;"></span></p>
