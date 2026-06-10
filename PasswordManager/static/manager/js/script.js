@@ -211,6 +211,16 @@ function displayDetails(id) {
         
         setFormFieldsDisabled(true);  // locking the fields
 
+        const passwordInput = document.getElementById('display-password');
+        passwordInput.style.borderColor = ''; 
+        passwordInput.style.boxShadow = '';
+        passwordInput.classList.remove('border-strong', 'border-weak');
+
+        const strengthLabel = document.getElementById('password-strength-text');
+        if (strengthLabel && (strengthLabel.textContent === 'Strong' || strengthLabel.textContent === 'Weak')) {
+            strengthLabel.textContent = '';
+        }
+
         const editBtn = document.getElementById('edit-button');
         const deleteBtn = document.getElementById('delete-button');
         const saveBtn = document.getElementById('save-button');
@@ -551,7 +561,10 @@ async function saveUpdate(id) {
             const result = await response.json();
             const index = credentials_list.findIndex(item => item.id === id);
             if (index !== -1) {
-                credentials_list[index] = result;
+                credentials_list[index] = {
+                    ...result,            // keep everything else the server sent 
+                    password: password   // explicitly force the plain text password back into RAM
+                };
             }
             renderList();
             displayDetails(id);
