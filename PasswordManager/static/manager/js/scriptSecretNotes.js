@@ -19,9 +19,8 @@ async function fetchNotes() {
             const data = await response.json();
             notes_list = data.results || data;
             renderList(); 
+
         } else if (response.status === 401) {
-            alert("Master Key is invalid or missing for Notes!");
-            
             sessionStorage.removeItem('master_key');
             sessionStorage.removeItem('scoped_api_token');
             sessionStorage.removeItem('vault_canary');
@@ -418,21 +417,6 @@ function setCookie (name, value, days) {
 }
 
 
-// function to get a cookie from the browser's storage
-
-// function getCookie(name) {
-//     let nameEQ = name + "=";
-//     let ca = document.cookie.split(';');  // this split the long string, to get each component separately (name, value, days)
-//     for(let i=0; i < ca.length; i++) {
-//         let c = ca[i];
-//         while (c.charAt(0) == ' ') c = c.substring(1, c.length);  // trim any white space put by the browser at the beginning of a cookie
-//         if (c.indexOf(nameEQ) == 0) return c.substring(nameEQ.length, c.length);   // indexOf() looks for a substring in a string, and because we want the name of the cookie to match the "name" parameter
-//         // we need to make sure that the substring "name" is starting on the first position of the cookies name, meaning that they are equal
-//         // we then extract the value of the cookie and return it
-//     }
-//     return null;
-// }
-
 
 window.onload = function() {
     renderList(); 
@@ -444,11 +428,6 @@ window.onload = function() {
 
         if (lastEntry) {
             displayDetails(lastEntry.id);
-        
-            // const msgElement = document.getElementById('cookie-msg');
-            // if (msgElement) {
-            //     msgElement.innerText = "Resuming where you left off: " + lastVisitedName;
-            // }
         }
     }
 };
@@ -479,17 +458,3 @@ window.addEventListener('DOMContentLoaded', (event) => {
         askForMasterKey();
     }
 });
-
-function askForMasterKey() {
-    let input = prompt("Welcome back! Please enter your Master Key to unlock your vault:");
-
-    if (input === null || input.trim() === "") {
-        userMasterKey = ""; // Keep it empty
-        alert("Vault remains locked. You won't be able to see or save credentials!");
-    } else {
-        userMasterKey = input; 
-        sessionStorage.setItem('master_key', input);
-        console.log("Vault Unlocked!");
-        fetchNotes();
-    }
-}

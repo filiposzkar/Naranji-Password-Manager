@@ -1,5 +1,52 @@
 let credentials_list = []; 
 let userMasterKey = "";
+let currentPage = 1;
+const itemsPerPage = 5;
+
+
+async function loadCredentialsFromServer() {
+    if (!userMasterKey) {
+        userMasterKey = sessionStorage.getItem('master_key') || "";
+    }
+
+    if (!userMasterKey) {
+        askForMasterKey();
+        return;
+    }
+
+    try {
+        const response = await fetch('/api/credentials/', {
+            method: 'GET',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Master-Key': userMasterKey,
+                'X-Scoped-Token': sessionStorage.getItem('scoped_api_token')
+            },
+            credentials: 'include' 
+        });
+        
+        if (response.ok) {
+            const data = await response.json();
+            credentials_list = Array.isArray(data) ? data : (data.results || []);
+            renderList();
+        } 
+        else if (response.status === 401 || response.status === 400) {
+            alert("Invalid or missing Master Key! Access denied.");
+            
+            sessionStorage.removeItem('master_key');
+            sessionStorage.removeItem('scoped_api_token');
+            sessionStorage.removeItem('vault_canary');
+            window.location.href = '/login/';
+        } 
+        else if (response.status === 403) {
+            alert("Session unauthorized or expired. Please re-authenticate.");
+            window.location.href = '/login/';
+        }
+    } catch (error) {
+        console.error("Failed to load credentials:", error);
+    }
+}
+
 
 function getCookie(name) {
     let cookieValue = null;
@@ -72,46 +119,6 @@ document.getElementById('save-backup-btn').addEventListener('click', function() 
 });
 
 
-async function loadCredentialsFromServer() {
-    if (!userMasterKey) {
-        userMasterKey = sessionStorage.getItem('master_key') || "";
-    }
-    try {
-        const response = await fetch('/api/credentials/', {
-            method: 'GET',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-Master-Key': userMasterKey,
-                'X-Scoped-Token': sessionStorage.getItem('scoped_api_token')
-            },
-            credentials: 'include' 
-        });
-        
-        if (response.ok) {
-            const data = await response.json();
-            credentials_list = Array.isArray(data) ? data : (data.results || []);
-            renderList();
-        } else if (response.status === 400) {
-            alert("Master Key is required to view credentials!");
-            
-            sessionStorage.removeItem('master_key');
-            sessionStorage.removeItem('scoped_api_token');
-            sessionStorage.removeItem('vault_canary');
-            window.location.href = '/login/';
-        } else if (response.status === 403) {
-            alert("Session unauthorized or expired. Please re-authenticate.");
-            window.location.href = '/login/';
-        }
-    } catch (error) {
-        console.error("Failed to load credentials:", error);
-    }
-}
-
-loadCredentialsFromServer();
-
-
-let currentPage = 1;
-const itemsPerPage = 5;
 
 
 function renderList() {
@@ -643,22 +650,6 @@ function setCookie (name, value, days) {
 }
 
 
-// function to get a cookie from the browser's storage
-
-// function getCookie(name) {
-//     let nameEQ = name + "=";
-//     let ca = document.cookie.split(';');  // this split the long string, to get each component separately (name, value, days)
-//     for(let i=0; i < ca.length; i++) {
-//         let c = ca[i];
-//         while (c.charAt(0) == ' ') c = c.substring(1, c.length);  // trim any white space put by the browser at the beginning of a cookie
-//         if (c.indexOf(nameEQ) == 0) return c.substring(nameEQ.length, c.length);   // indexOf() looks for a substring in a string, and because we want the name of the cookie to match the "name" parameter
-//         // we need to make sure that the substring "name" is starting on the first position of the cookies name, meaning that they are equal
-//         // we then extract the value of the cookie and return it
-//     }
-//     return null;
-// }
-
-
 window.onload = function() {
     renderList(); 
     const lastVisitedName = getCookie("last-viewed-login-credential");
@@ -672,6 +663,7 @@ window.onload = function() {
         }
     }
 };
+
 
 document.addEventListener('DOMContentLoaded', () => {
     const links = document.querySelectorAll('a');
@@ -706,7 +698,8 @@ function askForMasterKey() {
     
     if (input === null || input.trim() === "") {
         userMasterKey = ""; // Keep it empty
-        alert("Vault remains locked. You won't be able to see or save credentials!");
+        window.location.href = "/login/";
+        return;
     } else {
         userMasterKey = input; 
         sessionStorage.setItem('master_key', input);
@@ -714,3 +707,21 @@ function askForMasterKey() {
         loadCredentialsFromServer(); 
     }
 }
+
+document.addEventListener('DOMContentLoaded', () => {
+    const saveBtn = document.getElementById('save-button');
+    if (saveBtn) saveBtn.onclick = saveNewItem;
+
+    renderVaultChart();
+
+    // Secure sequence checks
+    if (window.location.pathname.includes('credentials') || document.getElementById('add-item-button')) {
+        if (sessionStorage.getItem('master_key')) {
+            loadCredentialsFromServer();
+        } else {
+            askForMasterKey();
+        }
+    } else {
+        renderList();
+    }
+});
