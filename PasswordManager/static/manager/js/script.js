@@ -211,7 +211,9 @@ function displayDetails(id) {
         document.getElementById('display-email').value = entry.email;      
         document.getElementById('display-username').value = entry.username; 
         document.getElementById('display-password').value = entry.password;
-        document.getElementById('display-URL').value = entry.url;          
+        document.getElementById('display-URL').value = entry.url;        
+        
+        setFormFieldsDisabled(true);  // locking the fields
 
         const editBtn = document.getElementById('edit-button');
         const deleteBtn = document.getElementById('delete-button');
@@ -257,6 +259,57 @@ function showAddForm() {
 }
 
 
+function setFormFieldsDisabled(status) {
+    document.getElementById('display-email').disabled = status;
+    document.getElementById('display-username').disabled = status;
+    document.getElementById('display-password').disabled = status;
+    document.getElementById('display-URL').disabled = status;
+}
+
+
+document.getElementById('add-item-button').addEventListener('click', () => {
+    document.getElementById('display-email').value = "";
+    document.getElementById('display-username').value = "";
+    document.getElementById('display-password').value = "";
+    document.getElementById('display-URL').value = "";
+
+    setFormFieldsDisabled(false);   // unlock the fields 
+
+    document.getElementById('save-button').style.display = "block";
+    document.getElementById('edit-button').style.display = "none";
+})
+
+
+
+function generateStrongPassword() {
+    const lowercase = "abcdefghijklmnopqrstuvwxyz";
+    const uppercase = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+    const numbers = "0123456789";
+    const symbols = "!@#$%^&*";
+
+    let password = "";
+    password += lowercase[Math.floor(Math.random() * lowercase.length)];
+    password += uppercase[Math.floor(Math.random() * uppercase.length)];
+    password += numbers[Math.floor(Math.random() * numbers.length)];
+    password += symbols[Math.floor(Math.random() * symbols.length)];
+
+    const allChars = lowercase + uppercase + numbers + symbols;
+    for (let i = 0; i < 8; i++) {
+        password += allChars[Math.floor(Math.random() * allChars.length)];
+    }
+
+    return password.split('').sort(() => 0.5 - Math.random()).join('');
+}
+
+
+function autoFillGeneratedPassword() {
+    const passwordInput = document.getElementById('display-password');
+    const newPassword = generateStrongPassword();
+    passwordInput.value = newPassword;
+    passwordInput.dispatchEvent(new Event('input'));
+}
+
+
 
 document.getElementById('display-password').addEventListener('input', function() {
     const passwordInput = this;
@@ -282,11 +335,17 @@ document.getElementById('display-password').addEventListener('input', function()
     else {
         passwordInput.classList.remove('border-strong');
         passwordInput.classList.add('border-weak');
-        strengthText.innerText = "Weak (12+ characters, 1 upper case, 1 lower case, 1 number, 1 symbol)";
-        strengthText.style.color = "#d9534f";
+        if (strengthText) {
+            strengthText.innerHTML = `
+                Weak (12+ characters, 1 uppercase, 1 lowercase, 1 number, 1 symbol). 
+                <a href="javascript:void(0)" onclick="autoFillGeneratedPassword()" style="color: #337ab7; text-decoration: underline; margin-left: 5px;">
+                    Generate strong password
+                </a>
+            `;
+            strengthText.style.color = "#d9534f";
+        }
     }
 });
-
 
 
 
@@ -423,6 +482,7 @@ async function deleteItem(id) {
 
 
 function startEditing(id) {
+    setFormFieldsDisabled(false);  
     const entry = credentials_list.find(item => item.id === id);
     
     // swapping the H2 for an input so the user can change the name

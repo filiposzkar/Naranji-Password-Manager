@@ -120,15 +120,12 @@ function displayDetails(id) {
         document.getElementById('display-notes-logo').src = "/static/manager/assets/Note.png";
         document.getElementById('display-notes-bodytext').value = entry.bodytext;
         
-        // document.getElementById('edit-button').onclick = () => startEditing(id);
-        // document.getElementById('delete-button').onclick = () => deleteItem(id);
-        
-        // document.getElementById('save-button').style.display = "none";
-        // document.getElementById('edit-button').innerText = "Edit";
 
         const editBtn = document.getElementById('edit-button');
         const deleteBtn = document.getElementById('delete-button');
         const saveBtn = document.getElementById('save-button');
+
+        setFormFieldsDisabled(true);
 
         if (editBtn) {
             editBtn.style.display = "block"; 
@@ -148,6 +145,7 @@ function displayDetails(id) {
 
 // prepare form for new item
 function showAddForm() {
+    setFormFieldsDisabled(false);   // unlock the fields 
     // swapping H2 for an input field
     const container = document.getElementById('name-container');
     container.innerHTML = '<input type="text" id="input-notes-name" placeholder="Notes Name" class="main-title-input">';
@@ -163,6 +161,22 @@ function showAddForm() {
     document.getElementById('share-note-button').style.display = "none";
 }
 
+
+function setFormFieldsDisabled(status) {
+    document.getElementById('display-notes-name').disabled = status;
+    document.getElementById('display-notes-bodytext').disabled = status;
+}
+
+
+document.getElementById('add-item-button').addEventListener('click', () => {
+    document.getElementById('display-notes-name').value = "";
+    document.getElementById('display-notes-bodytext').value = "";
+
+    setFormFieldsDisabled(false);   // unlock the fields 
+
+    document.getElementById('save-button').style.display = "block";
+    document.getElementById('edit-button').style.display = "none";
+})
 
 
 async function saveNewItem() {
@@ -266,6 +280,7 @@ async function deleteItem(id) {
 
 
 function startEditing(id) {
+    setFormFieldsDisabled(false);  
     const entry = notes_list.find(item => item.id === id);
     
     // swapping the H2 for an input so the user can change the name
