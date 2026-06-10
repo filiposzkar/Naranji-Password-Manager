@@ -110,11 +110,14 @@ document.getElementById('generate-codes-btn').addEventListener('click', function
 });
 
 
+
 document.getElementById('save-backup-btn').addEventListener('click', function() {
     const phrase = document.getElementById('setup-phrase').value;
     const masterKey = prompt("Please confirm your current Master Key to encrypt the backup:");
 
     if (!phrase || !masterKey) return alert("Both fields are required!");
+
+    const messageElement = document.getElementById('setup-message');
 
     fetch('/api/setup-recovery/', {
         method: 'POST',
@@ -128,12 +131,28 @@ document.getElementById('save-backup-btn').addEventListener('click', function() 
         }),
         credentials: 'include'
     })
-    .then(response => response.json())
-    .then(data => {
-        document.getElementById('setup-message').innerText = "Backup secured! You can now use the recovery page.";
-        document.getElementById('setup-message').style.color = "green";
+    .then(response => {
+        return response.json().then(data => {
+            if (!response.ok) {
+                return { success: false, errorMsg: data.message || "An error occurred." };
+            }
+            return { success: true, errorMsg: null };
+        });
     })
-    .catch(err => console.error(err));
+    .then(result => {
+        if (result.success) {
+            messageElement.innerText = "Backup secured! You can now use the recovery page.";
+            messageElement.style.color = "green";
+        } else {
+            messageElement.innerText = result.errorMsg;
+            messageElement.style.color = "red";
+        }
+    })
+    .catch(err => {
+        console.error("Network or structural error:", err);
+        messageElement.innerText = "Could not connect to the server. Please try again.";
+        messageElement.style.color = "red";
+    });
 });
 
 

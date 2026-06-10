@@ -261,6 +261,22 @@ def setup_master_key_recovery(request):
       if not phrase or not master_key:
         return JsonResponse({"status": "error", "message": "Missing data"}, status=400)
       
+      
+      # we need to test if the master key sent by the user actually belongs to them
+      # we can do that by trying to decrypt one of their credentials with the master key they provided
+      # if the decryption is successful, great, if not, then the given master key is not correct
+      test_credential = Credential.objects.filter(user=request.user).first()
+      if test_credential:
+        try:
+          crypto_key = get_crypto_key(master_key) # deriving the crypto key from the user's input master key
+          f = Fernet(crypto_key)
+          f.decrypt(test_credential.password.encode()) # attempting to decrypt their stored password
+        except Exception:
+          return JsonResponse({"status": "error", "message": "Incorrect Master Key. Authentication failed."}, status=401)  # Fernet failed, so master key is not correct
+      else:
+        pass
+
+      
       hashed_phrase = make_password(phrase.strip())  # hashing the recovery phrase so we don't store it in plain text
       crypto_key = derive_key(phrase.strip())        # deriving a robust cryptographic key from the recovery phrase words
       f = Fernet(crypto_key)                         # starts the encryption process
