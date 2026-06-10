@@ -318,6 +318,7 @@ def register_view(request):
       
       default_role = Role.objects.filter(name="Normal User").first()
       user_mfa_secret = pyotp.random_base32()  # this line generates the secret key (random 32-character string)
+
       new_user = CustomUser.objects.create_user(
         username=username,
         email=email,
@@ -326,6 +327,9 @@ def register_view(request):
         is_mfa_enabled=True,
         mfa_secret=user_mfa_secret
       )
+
+      login(request, new_user)
+
       return JsonResponse({
         "message": "Registration successful!",
         "mfa_secret_key": user_mfa_secret 
