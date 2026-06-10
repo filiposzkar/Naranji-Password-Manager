@@ -166,35 +166,6 @@ function renderList() {
 }
 
 
-
-async function renderVaultChart() {
-    const response = await fetch('/api/statistics/');
-    const stats = await response.json();
-
-    const ctx = document.getElementById('vaultChart').getContext('2d');
-    new Chart(ctx, {
-        type: 'pie', 
-        data: {
-            labels: stats.labels,
-            datasets: [{
-                label: 'Vault Distribution',
-                data: stats.values,
-                backgroundColor: ['#4CAF50', '#FFC107'], 
-            }]
-        },
-        options: {
-            responsive: true,
-            plugins: {
-                legend: { position: 'bottom' }
-            }
-        }
-    });
-}
-
-
-renderVaultChart();
-
-
 function updatePaginationControls() {
     const totalPages = Math.ceil(credentials_list.length / itemsPerPage) || 1;
     const info = document.getElementById('pagination-info');
@@ -684,17 +655,17 @@ window.onload = function() {
 
 
 document.addEventListener('DOMContentLoaded', () => {
-    // 1. Assign Static UI Handlers
     const saveBtn = document.getElementById('save-button');
     if (saveBtn) saveBtn.onclick = saveNewItem;
 
-    // 2. Set up smooth transitions for links
     const links = document.querySelectorAll('a');
     links.forEach(link => {
-        link.addEventListener('click', function(e) {
+        link.addEventListener('click', function(e) {   // when the user clicks on a specific link 
+
+            // checking if the link is internal, not an external one outside the website and if it is valid
             if (this.hostname === window.location.hostname && this.href && this.getAttribute('href') !== 'javascript:void(0)') {
-                e.preventDefault();
-                const target = this.href;
+                e.preventDefault();  // stop the browser from instantly jumping to the new page
+                const target = this.href;  // remembers the URL the user wants to go to
                 document.body.style.opacity = '0';
                 document.body.style.transition = 'opacity 0.5s ease';
                 setTimeout(() => { window.location.href = target; }, 500);
@@ -702,12 +673,9 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
-    // 3. Fire Asynchronous UI Layout Components
-    renderVaultChart();
 
-    // 4. Run Security Validation Loop exactly once
     if (window.location.pathname.includes('credentials') || document.getElementById('add-item-button')) {
-        if (sessionStorage.getItem('master_key')) {
+        if (sessionStorage.getItem('master_key')) {   // did the user already wrote their master key?
             loadCredentialsFromServer();
         } else {
             askForMasterKey();
