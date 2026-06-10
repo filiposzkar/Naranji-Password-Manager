@@ -14,7 +14,7 @@ class NoteAdmin(admin.ModelAdmin):
     search_fields = ('headline', 'bodytext') # adding a search bar to the top of the admin page
     list_filter = ('headline',)
 
-@admin.register(UserLog)
+@admin.register(UserLog)     # attach it to the UserLog model
 class UserLogAdmin(admin.ModelAdmin):
     list_display = ('user', 'group', 'action', 'timestamp', 'is_suspicious')
 
@@ -22,7 +22,7 @@ class UserLogAdmin(admin.ModelAdmin):
 class ScopedTokenAdmin(admin.ModelAdmin):
     list_display = ('user', 'scope', 'token', 'expires_at', 'is_revoked')
     list_filter = ('scope', 'is_revoked')
-    search_fields = ('user__username', 'token')
+    search_fields = ('user__username', 'token')   # search by the username of the User
 
 
 @admin.register(EmergencyAccessCode)
@@ -33,7 +33,7 @@ class EmergencyAccessCodeAdmin(admin.ModelAdmin):
 
     def get_truncated_hash(self, obj):
         if obj.code_hash:
-            return f"{obj.code_hash[:20]}..."
+            return f"{obj.code_hash[:20]}..."    # showing only the first 20 characters of the encrypted code
         return "-"
     get_truncated_hash.short_description = "Code Hash"
 

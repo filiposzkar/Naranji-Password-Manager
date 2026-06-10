@@ -188,6 +188,19 @@
     border-radius: 15px;
 }
 
+#input-website-name {
+    width: 100%;
+    max-width: 790px;             /* Keeps it from becoming too wide on large monitors */
+    padding: 12px 20px;           /* Gives it that nice, tall internal breathing room */
+    margin: 8px 0;                /* Adds spacing between this field and the label below it */
+    box-sizing: border-box;       /* Ensures padding doesn't mess up the width calculation */
+    border: 1px solid #ccc;       /* Gives it a subtle light border */
+    border-radius: 20px;          /* This creates the beautiful pill-shaped rounded corners! */
+    font-size: 16px;              /* Makes the text clean and readable */
+    outline: none;
+    background-color: #ffffff;
+}
+
 #display-website-name {
     font-size: 40px;
     color: #223809;
@@ -353,4 +366,12 @@
 #save-backup-btn:hover{
     background-color: #5A7011;
     color: #fdfae1;
+}
+
+.border-weak {
+    border: 2px solid #d9534f !important;
+}
+
+.border-strong {
+    border: 2px solid #a4c639 !important; 
 }

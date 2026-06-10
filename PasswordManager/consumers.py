@@ -5,7 +5,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
   async def connect(self):  # this is the receptionsit; when a user arrives on the chat page, this function decides how to let them in
     if self.scope["user"].is_authenticated:
         await self.channel_layer.group_add("general", self.channel_name)
-        print("✅ CHAT CONNECTED AND ADDED TO GROUP")
+        print("CHAT CONNECTED AND ADDED TO GROUP")
     else:
         await self.close() # if they aren't logged in, then kick them out
 

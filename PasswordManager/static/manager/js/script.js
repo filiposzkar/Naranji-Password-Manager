@@ -28,7 +28,6 @@ document.getElementById('generate-codes-btn').addEventListener('click', function
             'X-Scoped-Token': sessionStorage.getItem('scoped_api_token'),
             'X-CSRFToken': csrftoken
         },
-        credentials: 'include'
     })
     .then(response => response.json())
     .then(data => {
@@ -167,7 +166,7 @@ async function renderVaultChart() {
     });
 }
 
-// Call this when the page loads
+
 renderVaultChart();
 
 
@@ -245,7 +244,7 @@ function showAddForm() {
     container.innerHTML = '<input type="text" id="input-website-name" placeholder="Website Name" class="main-title-input">';
 
     // clearing everything
-    document.getElementById('display-website-logo').src = "manager/assets/NaranjiLogo.png";
+    document.getElementById('display-website-logo').src = "static/manager/assets/Login.png";
     document.getElementById('display-email').value = "";
     document.getElementById('display-username').value = "";
     document.getElementById('display-password').value = "";
@@ -253,7 +252,42 @@ function showAddForm() {
 
     // toggling buttons
     document.getElementById('save-button').style.display = "block";
+    document.getElementById('edit-button').style.display = "none";
+    document.getElementById('delete-button').style.display = "none";
 }
+
+
+
+document.getElementById('display-password').addEventListener('input', function() {
+    const passwordInput = this;
+    const strengthText = document.getElementById('password-strength-text');
+    const passwordValue = passwordInput.value;
+
+    if (passwordValue.length === 0) {
+        passwordInput.classList.remove('border-weak', 'border-strong');
+        strengthText.innerText = '';
+        return;
+    }
+
+    // at least 12 characters, at least 1 number, at leat 1 special character
+    const strongPasswordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*[0-9])(?=.*[!@#$%^&*])[a-zA-Z0-9!@#$%^&*]{12,}$/;  
+
+    if (strongPasswordRegex.test(passwordValue)) {
+        passwordInput.classList.remove('border-weak');
+        passwordInput.classList.add('border-strong');
+        strengthText.innerText = "Strong";
+        strengthText.style.color = "#a4c639";
+    }
+
+    else {
+        passwordInput.classList.remove('border-strong');
+        passwordInput.classList.add('border-weak');
+        strengthText.innerText = "Weak (12+ characters, 1 upper case, 1 lower case, 1 number, 1 symbol)";
+        strengthText.style.color = "#d9534f";
+    }
+});
+
+
 
 
 async function saveNewItem() {
@@ -325,18 +359,15 @@ async function saveNewItem() {
             const savedItem = await response.json(); 
             alert("Saved and encrypted!");
 
-            // Ensure we are unshifting into an array
             if (Array.isArray(credentials_list)) {
                 credentials_list.unshift(savedItem);
             } else {
-                // If for some reason it's still an object, fix it or push to results
                 if (credentials_list.results) {
                     credentials_list.results.unshift(savedItem);
                 } else {
                     credentials_list = [savedItem];
                 }
             }
-            
             renderList();
             displayDetails(savedItem.id);
         }

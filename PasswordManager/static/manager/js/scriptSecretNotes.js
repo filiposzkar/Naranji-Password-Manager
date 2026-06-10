@@ -158,6 +158,9 @@ function showAddForm() {
 
     // toggling buttons
     document.getElementById('save-button').style.display = "block";
+    document.getElementById('edit-button').style.display = "none";
+    document.getElementById('delete-button').style.display = "none";
+    document.getElementById('share-note-button').style.display = "none";
 }
 
 

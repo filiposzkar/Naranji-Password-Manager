@@ -2,75 +2,80 @@ from django.db import models
 from django.conf import settings
 from django.contrib.auth.models import AbstractUser
 from django.contrib.auth.models import User
-import uuid
+import uuid   # generates unique random ID's
 
 
 class Permission(models.Model):
   name = models.CharField(max_length=100, unique=True)
   codename = models.CharField(max_length=100, unique=True)
 
-  def __str__(self):
+  def __str__(self):  # tells the Django Admin panel to display the actual name of the permission
     return self.name
   
+
 
 class Role(models.Model):
   name = models.CharField(max_length=50, unique=True)
-  permissions = models.ManyToManyField(Permission, blank=True)
-
+  permissions = models.ManyToManyField(Permission, blank=True)  # a single Role can have multiple Permissions, a single Permission belongs to many Roles
+                                                                
   def __str__(self):
     return self.name
   
 
-class CustomUser(AbstractUser):
-  role = models.ForeignKey(Role, on_delete=models.SET_NULL, null=True, blank=True)
+
+class CustomUser(AbstractUser):  # inheriting all the standard features from the built-in Django user
+  role = models.ForeignKey(Role, on_delete=models.SET_NULL, null=True, blank=True)  # linking a User to a Role; if that Role is deleted, the Role of the User becomes empty
 
   # MFA fields
   is_mfa_enabled = models.BooleanField(default=False)
-  mfa_secret = models.CharField(max_length=32, blank=True, null=True)  # for TOTP (Google Authentication)
-  
-  backup_code = models.JSONField(default=list, blank=True) # to store one-time use recovery codes
+  mfa_secret = models.CharField(max_length=32, blank=True, null=True)  # stores the secret key for TOTP (Google Authentication)
+  backup_code = models.JSONField(default=list, blank=True)             # to store one-time use recovery codes
 
   def has_custom_permission(self, codename):
-    if self.role:  # does the user even have a Role assigned
-        return self.role.permissions.filter(codename=codename).exists()  # looking at the User's role and then at their permissions, searching for the codename of a permission
+    if self.role:                                                      # does the user even have a Role assigned
+      return self.role.permissions.filter(codename=codename).exists()  # looking at the User's role and then at their permissions, searching for the codename of a permission
     return False
   
 
+
 class RecoveryKey(models.Model):  # this is used in case the user forgets their master key
-  user = models.OneToOneField(CustomUser, on_delete=models.CASCADE)
-  encrypted_master_key_backup = models.TextField()
-  recovery_phrase_hash = models.CharField(max_length=128)
+  user = models.OneToOneField(CustomUser, on_delete=models.CASCADE)   # if the User is deleted, the key is also deleted
+  encrypted_master_key_backup = models.TextField()                    # the encrypted version of the master key, in case the user forgets it
+  recovery_phrase_hash = models.CharField(max_length=128)             # the recovery phrase used by the user to get their master key
+
 
 
 class EmergencyAccessCode(models.Model):  # this is used as a third way of verification (in case the user losses their phone and cannot use Google Authentication)
-  user = models.ForeignKey(CustomUser, on_delete=models.CASCADE, related_name='emergency_codes')
+  user = models.ForeignKey(CustomUser, on_delete=models.CASCADE, related_name='emergency_codes')  # a User can have multiple emergency codes
   code_hash = models.CharField(max_length=128) # hashed for security
-  used = models.BooleanField(default=False)
+  used = models.BooleanField(default=False)    # has this code already been used
+
 
 
 class UserSession(models.Model):
   user = models.ForeignKey(CustomUser, on_delete=models.CASCADE)
   session_key = models.CharField(max_length=40, unique=True)
   ip_address = models.GenericIPAddressField(null=True, blank=True)
-  user_agent = models.TextField(null=True, blank=True) # Browser/Device info
+  user_agent = models.TextField(null=True, blank=True) 
   last_activity = models.DateTimeField(auto_now=True)
   is_active = models.BooleanField(default=True)
 
   def __str__(self):
-      return f"{self.user.username} session ({self.ip_address})"
+    return f"{self.user.username} session ({self.ip_address})"
   
+
 
 class ScopedToken(models.Model):
   user = models.ForeignKey(CustomUser, on_delete=models.CASCADE)
-  token = models.UUIDField(default=uuid.uuid4, editable=False, unique=True)
-  scope = models.CharField(max_length=50) # e.g., "readonly", "write_notes", "admin_access"
+  token = models.UUIDField(default=uuid.uuid4, editable=False, unique=True)   # generates long API token key; it cannot be edited in the admin panel
+  scope = models.CharField(max_length=50)    # what the token is allowed to do (e.g., "readonly", "write_notes", "admin_access")
   expires_at = models.DateTimeField()
   is_revoked = models.BooleanField(default=False)
 
 
 
 class Credential(models.Model):
-  user = models.ForeignKey(CustomUser, on_delete=models.CASCADE, related_name="credentials")
+  user = models.ForeignKey(CustomUser, on_delete=models.CASCADE, related_name="credentials")  # linking it to the User who owns it
   website_name = models.CharField(max_length=100)
   email = models.EmailField()
   username = models.CharField(max_length=100)
@@ -81,6 +86,7 @@ class Credential(models.Model):
   def __str__(self):
     return f"{self.website_name} - {self.username}"
   
+
 
 class Note(models.Model):
   user = models.ForeignKey(CustomUser, on_delete=models.CASCADE, related_name="notes")
@@ -96,7 +102,7 @@ class Note(models.Model):
 class UserLog(models.Model):
   user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
   group = models.CharField(max_length=20) # admin or user
-  action = models.TextField()
+  action = models.TextField()             # a description of what happened
   timestamp = models.DateTimeField(auto_now_add=True)
   is_suspicious = models.BooleanField(default=False)
 
