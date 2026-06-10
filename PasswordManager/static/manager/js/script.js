@@ -4,6 +4,24 @@ let currentPage = 1;
 const itemsPerPage = 5;
 
 
+function askForMasterKey() {
+    let input = prompt("Welcome back! Please enter your Master Key to unlock your vault:");
+    
+    if (input === null || input.trim() === "") {
+        userMasterKey = ""; 
+        sessionStorage.removeItem('master_key'); 
+        window.location.href = "/login/";
+        return;
+    } 
+    else {
+        userMasterKey = input; 
+        sessionStorage.setItem('master_key', input); 
+        console.log("Vault Unlocked! Fetching backend records...");
+        loadCredentialsFromServer(); 
+    }
+}
+
+
 async function loadCredentialsFromServer() {
     if (!userMasterKey) {
         userMasterKey = sessionStorage.getItem('master_key') || "";
@@ -666,55 +684,28 @@ window.onload = function() {
 
 
 document.addEventListener('DOMContentLoaded', () => {
-    const links = document.querySelectorAll('a');
-
-    links.forEach(link => {
-        link.addEventListener('click', function(e) {
-            // Check if it's an internal link (doesn't open in new tab and has an href)
-            if (this.hostname === window.location.hostname && this.href) {
-                e.preventDefault();
-                const target = this.href;
-
-                document.body.style.opacity = '0';
-                document.body.style.transition = 'opacity 0.5s ease';
-
-                setTimeout(() => {
-                    window.location.href = target;
-                }, 500);
-            }
-        });
-    });
-});
-
-
-window.addEventListener('DOMContentLoaded', (event) => {
-    if(window.location.pathname.includes('credentials') || document.getElementById('add-item-button')) {
-        askForMasterKey();
-    }
-});
-
-function askForMasterKey() {
-    let input = prompt("Welcome back! Please enter your Master Key to unlock your vault:");
-    
-    if (input === null || input.trim() === "") {
-        userMasterKey = ""; // Keep it empty
-        window.location.href = "/login/";
-        return;
-    } else {
-        userMasterKey = input; 
-        sessionStorage.setItem('master_key', input);
-        console.log("Vault Unlocked!");
-        loadCredentialsFromServer(); 
-    }
-}
-
-document.addEventListener('DOMContentLoaded', () => {
+    // 1. Assign Static UI Handlers
     const saveBtn = document.getElementById('save-button');
     if (saveBtn) saveBtn.onclick = saveNewItem;
 
+    // 2. Set up smooth transitions for links
+    const links = document.querySelectorAll('a');
+    links.forEach(link => {
+        link.addEventListener('click', function(e) {
+            if (this.hostname === window.location.hostname && this.href && this.getAttribute('href') !== 'javascript:void(0)') {
+                e.preventDefault();
+                const target = this.href;
+                document.body.style.opacity = '0';
+                document.body.style.transition = 'opacity 0.5s ease';
+                setTimeout(() => { window.location.href = target; }, 500);
+            }
+        });
+    });
+
+    // 3. Fire Asynchronous UI Layout Components
     renderVaultChart();
 
-    // Secure sequence checks
+    // 4. Run Security Validation Loop exactly once
     if (window.location.pathname.includes('credentials') || document.getElementById('add-item-button')) {
         if (sessionStorage.getItem('master_key')) {
             loadCredentialsFromServer();
