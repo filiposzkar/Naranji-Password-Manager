@@ -39,7 +39,7 @@ import uuid
 from django.utils import timezone
 from datetime import timedelta
 from rest_framework.exceptions import PermissionDenied
-
+from django.apps import apps
 
 
 
@@ -115,7 +115,26 @@ def chat_view(request):
   return render(request, 'manager/chat.html') 
 
 
+def create_default_roles():
+    # This prevents circular import issues during startup
+    try:
+        Role = apps.get_model('manager', 'Role') # Replace 'manager' with your actual app name if different
+        
+        # get_or_create checks if it exists. If not, it creates it!
+        admin_role, created_admin = Role.objects.get_or_create(name="Admin")
+        user_role, created_user = Role.objects.get_or_create(name="Normal User")
+        
+        if created_admin:
+            print("Successfully seeded database with 'Admin' role.")
+        if created_user:
+            print("Successfully seeded database with 'Normal User' role.")
+    except LookupError:
+        # This catches cases where the Role model doesn't exist yet (like before your first migration runs)
+        pass
+
+
 def login_page_view(request):
+  create_default_roles()
   return render(request, 'manager/login.html')
 
 
