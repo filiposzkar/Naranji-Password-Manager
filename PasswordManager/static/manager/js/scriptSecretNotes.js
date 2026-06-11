@@ -141,6 +141,18 @@ function displayDetails(id) {
     }
 }
 
+function resetNotesDetailView() {
+    document.getElementById('name-container').innerHTML = `<h2 id="display-notes-name">Select an item</h2>`;
+    document.getElementById('display-notes-logo').src = "static/manager/assets/Note.png"; 
+    
+    document.getElementById('display-notes-bodytext').value = "";      
+    
+    if (document.getElementById('edit-button')) document.getElementById('edit-button').style.display = "none";
+    if (document.getElementById('delete-button')) document.getElementById('delete-button').style.display = "none";
+    if (document.getElementById('save-button')) document.getElementById('save-button').style.display = "none";
+    if (document.getElementById('share-note-button')) document.getElementById('share-note-button').style.display = "none";
+}
+
 
 // prepare form for new item
 function showAddForm() {
@@ -264,6 +276,7 @@ async function deleteItem(id) {
         if (response.ok) {
             notes_list = notes_list.filter(item => item.id !== id);
             renderList();
+            resetNotesDetailView();
             alert("Deleted successfully from the database");
         } else {
             const errorData = await response.json();

@@ -264,6 +264,31 @@ function displayDetails(id) {
 }
 
 
+function resetDetailView() {
+    document.getElementById('name-container').innerHTML = `<h2 id="display-website-name">Select an item</h2>`;
+    document.getElementById('display-website-logo').src = "static/manager/assets/Login.png"; 
+    
+    document.getElementById('display-email').value = "";      
+    document.getElementById('display-username').value = ""; 
+    document.getElementById('display-password').value = "";
+    document.getElementById('display-URL').value = "";        
+    
+    const strengthLabel = document.getElementById('password-strength-text');
+    if (strengthLabel) strengthLabel.textContent = '';
+    
+    const passwordInput = document.getElementById('display-password');
+    if (passwordInput) {
+        passwordInput.style.borderColor = ''; 
+        passwordInput.style.boxShadow = '';
+        passwordInput.classList.remove('border-strong', 'border-weak');
+    }
+
+    if (document.getElementById('edit-button')) document.getElementById('edit-button').style.display = "none";
+    if (document.getElementById('delete-button')) document.getElementById('delete-button').style.display = "none";
+    if (document.getElementById('save-button')) document.getElementById('save-button').style.display = "none";
+}
+
+
 // prepare form for new item
 function showAddForm() {
     // swapping H2 for an input field
@@ -493,6 +518,7 @@ async function deleteItem(id) {
         if (response.ok) {
             credentials_list = credentials_list.filter(item => item.id !== id);
             renderList();
+            resetDetailView();
             alert("Deleted successfully from the database");
         } else {
             const errorData = await response.json();
