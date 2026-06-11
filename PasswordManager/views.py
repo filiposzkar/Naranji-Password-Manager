@@ -663,7 +663,7 @@ def check_password_strength(password):
 
 
 
-@role_required("full_perms")
+
 def api_statistics(request):
   try:
     token_user = check_token_scope(request, "admin_access")
