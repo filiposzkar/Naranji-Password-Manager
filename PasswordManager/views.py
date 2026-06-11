@@ -749,8 +749,8 @@ def api_security_stats(request):
 
 @login_required
 def observation_list(request):  # this functions displays the suspicious events
-  if not request.user.is_superuser and not request.user.role.name == "Admin":
-    return redirect('home')
+  # if not request.user.is_superuser and not request.user.role.name == "Admin":
+  #   return redirect('home')
 
   suspicious_logs = UserLog.objects.filter(is_suspicious=True).order_by('-timestamp')
 
