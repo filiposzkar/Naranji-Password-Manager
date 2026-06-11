@@ -1,86 +1,72 @@
-async function renderVaultChart() {
+async function renderAllCharts() {
     const apiToken = sessionStorage.getItem('scoped_api_token');
+    const masterKey = sessionStorage.getItem('master_key');
 
-    const response = await fetch('/api/statistics/', {
-        method: 'GET',
-        headers: {
-            'Content-Type': 'application/json',
-            'X-Scoped-Token': apiToken // Prove admin_access scheme authorization!
-        }
-    });
-    const stats = await response.json();
-
-    const canvas = document.getElementById('vaultChart');
-    if (!canvas) return;
-
-    const ctx = canvas.getContext('2d');
-    new Chart(ctx, {
-        type: 'pie', 
-        data: {
-            labels: stats.labels,
-            datasets: [{
-                label: 'Vault Distribution',
-                data: stats.values,
-                backgroundColor: ['#4CAF50', '#FFC107'],
-            }]
-        },
-        options: {
-            responsive: true,
-            plugins: {
-                legend: { position: 'bottom' },
-                title: {
-                    display: true,
-                    text: 'Credentials and Notes counter'
-                }
+    try {
+        const response = await fetch('/api/statistics/', {
+            method: 'GET',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Scoped-Token': apiToken,
+                'X-Master-Key': masterKey
             }
+        });
+        const stats = await response.json();
+
+        const vaultCanvas = document.getElementById('vaultChart');
+        if (vaultCanvas) {
+            const ctx1 = vaultCanvas.getContext('2d');
+            new Chart(ctx1, {
+                type: 'pie', 
+                data: {
+                    labels: stats.vault_stats.labels,
+                    datasets: [{
+                        label: 'Vault Distribution',
+                        data: stats.vault_stats.values,
+                        backgroundColor: ['#4CAF50', '#FFC107'],
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: { position: 'bottom' },
+                        title: { display: true, text: 'Credentials and Notes counter' }
+                    }
+                }
+            });
         }
-    });
+
+        const securityCanvas = document.getElementById('securityChart');
+        if (securityCanvas) {
+            const ctx2 = securityCanvas.getContext('2d');
+            new Chart(ctx2, {
+                type: 'pie', 
+                data: {
+                    labels: stats.security_stats.labels,
+                    datasets: [{
+                        label: 'Password Health',
+                        data: stats.security_stats.values,
+                        backgroundColor: ['#4CAF50', '#FFC107'], 
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: { position: 'bottom' },
+                        title: { display: true, text: 'Password Reuse Health Check' }
+                    }
+                }
+            });
+        }
+    } catch (err) {
+        console.error("Failed loading statistical reporting dashboards:", err);
+    }
 }
 
-
-async function renderSecurityChart() {
-    const apiToken = sessionStorage.getItem('scoped_api_token');
-
-    const response = await fetch('/api/security-stats/', {
-        method: 'GET',
-        headers: {
-            'Content-Type': 'application/json',
-            'X-Scoped-Token': apiToken // Prove admin_access scheme authorization!
-        }
-    });
-    const stats = await response.json();
-
-    const ctx = document.getElementById('securityChart').getContext('2d');
-    new Chart(ctx, {
-        type: 'pie',
-        data: {
-            labels: stats.labels,
-            datasets: [{
-                label: 'System Health',
-                data: stats.values,
-                // Using the specific colors we defined in the Django view
-                backgroundColor: stats.colors || ['#a4c639', '#d9534f'], 
-                borderWidth: 1
-            }]
-        },
-        options: {
-            responsive: true,
-            plugins: {
-                legend: { position: 'bottom' },
-                title: {
-                    display: true,
-                    text: 'Security Observation Overview'
-                }
-            }
-        }
-    });
-}
 
 document.addEventListener('DOMContentLoaded', () => {
-    renderVaultChart();
-    renderSecurityChart();
+    renderAllCharts();
 });
-
 
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -102,3 +88,46 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 });
+
+
+
+
+
+// async function renderSecurityChart() {
+//     const apiToken = sessionStorage.getItem('scoped_api_token');
+
+//     const response = await fetch('/api/security-stats/', {
+//         method: 'GET',
+//         headers: {
+//             'Content-Type': 'application/json',
+//             'X-Scoped-Token': apiToken // Prove admin_access scheme authorization!
+//         }
+//     });
+//     const stats = await response.json();
+
+//     const ctx = document.getElementById('securityChart').getContext('2d');
+//     new Chart(ctx, {
+//         type: 'pie',
+//         data: {
+//             labels: stats.labels,
+//             datasets: [{
+//                 label: 'System Health',
+//                 data: stats.values,
+//                 // Using the specific colors we defined in the Django view
+//                 backgroundColor: stats.colors || ['#a4c639', '#d9534f'], 
+//                 borderWidth: 1
+//             }]
+//         },
+//         options: {
+//             responsive: true,
+//             plugins: {
+//                 legend: { position: 'bottom' },
+//                 title: {
+//                     display: true,
+//                     text: 'Security Observation Overview'
+//                 }
+//             }
+//         }
+//     });
+// }
+

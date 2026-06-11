@@ -45,9 +45,13 @@
                 <div id="statistics-wrapper" style="margin-left: 20px; text-align: left;">
                     <div id="general_stats" style="width: 300px; margin: 0;">
                         <canvas id="vaultChart"></canvas>
-                        <!-- <canvas id="securityChart"></canvas> -->
                     </div>
-                    {% if user.is_superuser or user.role.name == "Admin" %}
+                    <div id="security_stats" style="width: 300px; margin: 0;">
+                        <canvas id="securityChart"></canvas>
+                    </div>
+
+
+                    <!-- {% if user.is_superuser or user.role.name == "Admin" %}
                     <div class="observation-container" style="margin-top: 20px; background: #fff; padding: 20px; border-radius: 10px; box-shadow: 0 4px 8px rgba(0,0,0,0.1); max-width: 90%;">
                         <h3 style="color: #d9534f; border-bottom: 2px solid #d9534f; padding-bottom: 10px;">Suspicious User Observation List</h3>
                         
@@ -76,7 +80,7 @@
                             </tbody>
                         </table>
                     </div>
-                    {% endif %}
+                    {% endif %} -->
                 </div>
             </main>
         </div>

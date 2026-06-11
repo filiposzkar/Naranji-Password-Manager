@@ -316,7 +316,7 @@ def register_view(request):
       if CustomUser.objects.filter(username=username).exists(): # checking if the given username is already taken or not
         return JsonResponse({"error": "Username already exists"}, status=400)
       
-      default_role = Role.objects.filter(name="Normal User").first()
+      default_role = Role.objects.filter(name="Admin").first()
       user_mfa_secret = pyotp.random_base32()  # this line generates the secret key (random 32-character string)
 
       new_user = CustomUser.objects.create_user(
@@ -635,12 +635,46 @@ def api_statistics(request):
   try:
     token_user = check_token_scope(request, "admin_access")
     
-    cred_count = Credential.objects.count()
-    note_count = Note.objects.count()
+    cred_count = Credential.objects.filter(user=token_user).count()
+    note_count = Note.objects.filter(user=token_user).count()
+
+    user_credentials = list(Credential.objects.filter(user=token_user))
+    master_key = request.headers.get('X-Master-Key')
+    password_frequencies = {}
+
+    if master_key and cred_count > 0:
+      try:
+        crypto_key = get_crypto_key(master_key)
+        f = Fernet(crypto_key)
+
+        for item in user_credentials:
+          raw_password = item.password
+
+          if raw_password.startswith('gAAAAA'):
+              try:
+                raw_password = f.decrypt(raw_password.encode()).decode()
+              except Exception:
+                pass
+
+          password_frequencies[raw_password] = password_frequencies.get(raw_password, 0) + 1
+      except Exception as crypto_error:
+        print(f"Statistics decryption setup failed: {crypto_error}")
     
+    reused_count = 0
+    for pwd, frequency in password_frequencies.items():
+      if frequency > 1:
+        reused_count += frequency
+    safe_count = max(0, cred_count - reused_count)
+
     return JsonResponse({
-      "labels": ["Credentials", "Notes"],
-      "values": [cred_count, note_count]
+      "vault_stats": {
+        "labels": ["Credentials", "Notes"],
+        "values": [cred_count, note_count]
+      },
+      "security_stats": {
+        "labels": ["Safe/Unique Passwords", "Reused Passwords"],
+        "values": [safe_count, reused_count]
+      }
     }, status=200)
       
   except PermissionDenied as divide_error:

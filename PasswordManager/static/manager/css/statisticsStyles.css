@@ -140,10 +140,14 @@ h2 {
 
 #statistics {
   margin-left: 80px;
- 
 }
 
 #vaultChart {
+  margin-top: 30px;
+  margin-bottom: 50px;
+}
+
+#securityChart {
   margin-top: 30px;
   margin-bottom: 50px;
 }
