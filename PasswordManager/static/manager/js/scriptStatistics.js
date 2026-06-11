@@ -53,11 +53,36 @@ async function renderAllCharts() {
                     responsive: true,
                     plugins: {
                         legend: { position: 'bottom' },
-                        title: { display: true, text: 'Password Reuse Health Check' }
+                        title: { display: true, text: 'Password Reuse Check' }
                     }
                 }
             });
         }
+
+        const strengthCanvas = document.getElementById('strengthChart');
+        if(strengthCanvas) {
+            const ctx3 = strengthCanvas.getContext('2d');
+            new Chart(ctx3, {
+                type: 'pie',
+                data: {
+                    labels: stats.strength_stats.labels, 
+                    datasets: [{
+                        label: 'Password Strength',
+                        data: stats.strength_stats.values,  
+                        backgroundColor: ['#4CAF50', '#FFC107'], 
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: { position: 'bottom' },
+                        title: { display: true, text: 'Password Strength Evaluation' }
+                    }
+                }
+            });
+        }
+
+
     } catch (err) {
         console.error("Failed loading statistical reporting dashboards:", err);
     }

@@ -630,6 +630,20 @@ class NotesDetailView(APIView):
 
 
 
+def check_password_strength(password):
+  if len(password) < 12:
+    return "Weak"
+
+  has_upper = any(c.isupper() for c in password)
+  has_lower = any(c.islower() for c in password)
+  has_special = any (not c.isalnum() for c in password) or any(c.isdigit() for c in password)
+
+  if has_upper and has_lower and has_special:
+    return "Strong"
+  return "Weak"
+
+
+
 @role_required("full_perms")
 def api_statistics(request):
   try:
@@ -642,6 +656,9 @@ def api_statistics(request):
     master_key = request.headers.get('X-Master-Key')
     password_frequencies = {}
 
+    strong_count = 0
+    weak_count = 0
+
     if master_key and cred_count > 0:
       try:
         crypto_key = get_crypto_key(master_key)
@@ -649,14 +666,19 @@ def api_statistics(request):
 
         for item in user_credentials:
           raw_password = item.password
-
           if raw_password.startswith('gAAAAA'):
               try:
                 raw_password = f.decrypt(raw_password.encode()).decode()
               except Exception:
                 pass
-
           password_frequencies[raw_password] = password_frequencies.get(raw_password, 0) + 1
+
+          strength = check_password_strength(raw_password)
+          if strength == "Strong":
+            strong_count += 1
+          else:
+            weak_count += 1
+
       except Exception as crypto_error:
         print(f"Statistics decryption setup failed: {crypto_error}")
     
@@ -674,6 +696,10 @@ def api_statistics(request):
       "security_stats": {
         "labels": ["Safe/Unique Passwords", "Reused Passwords"],
         "values": [safe_count, reused_count]
+      },
+      "strength_stats": {
+        "labels": ["Strong Passwords", "Weak Passwords"],
+        "values": [strong_count, weak_count]
       }
     }, status=200)
       
@@ -731,8 +757,8 @@ class EnableMFAView(APIView):
     
     # creating the URL that Authenticator apps understand
     provisioning_url = totp.provisioning_uri(
-      name=user.email, 
-      issuer_name="PasswordManager"
+      name=user.username, 
+      issuer_name="Naranji"
     )
 
     # generating a QR code image to send to the frontend
