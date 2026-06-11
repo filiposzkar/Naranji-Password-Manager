@@ -101,8 +101,8 @@ def notes_page(request):
 
 @login_required(login_url='/login/')
 def statistics_page(request):
-  if not request.user.is_superuser and not (request.user.role and request.user.role.name == "Admin"):  # if the user is not superuser or admin, they cant see this page
-    return redirect('home')
+  # if not request.user.is_superuser and not (request.user.role and request.user.role.name == "Admin"):  # if the user is not superuser or admin, they cant see this page
+  #   return redirect('home')
 
   suspicious_logs = UserLog.objects.filter(is_suspicious=True).order_by('-timestamp') # display only the rows from the UserLog table where the is_suspicious flag is True
   return render(request, 'manager/statistics.html', {  # injecting the list of suspicious_logs into the statistics.html file
