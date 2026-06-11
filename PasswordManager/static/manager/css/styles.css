@@ -190,13 +190,13 @@
 
 #input-website-name {
     width: 100%;
-    max-width: 790px;             /* Keeps it from becoming too wide on large monitors */
-    padding: 12px 20px;           /* Gives it that nice, tall internal breathing room */
-    margin: 8px 0;                /* Adds spacing between this field and the label below it */
-    box-sizing: border-box;       /* Ensures padding doesn't mess up the width calculation */
-    border: 1px solid #ccc;       /* Gives it a subtle light border */
-    border-radius: 20px;          /* This creates the beautiful pill-shaped rounded corners! */
-    font-size: 16px;              /* Makes the text clean and readable */
+    max-width: 790px;             
+    padding: 12px 20px;           
+    margin: 8px 0;                
+    box-sizing: border-box;       
+    border: 1px solid #ccc;       
+    border-radius: 20px;          
+    font-size: 16px;            
     outline: none;
     background-color: #ffffff;
 }
@@ -352,19 +352,18 @@
     color: #fdfae1;
 }
 
-#save-backup-btn{
-    color: #2d3e1d;
-    background-color: #fdfae1;
+#save-backup-btn {
+    color: #416302;           
+    background-color: #fdfae1; 
+    padding: 10px;             
+    font-weight: bold;         
     cursor: pointer;
     border: none;
-    border-radius: 10px;
-    width: 200px;
-    height:30px;
+    border-radius: 20px;       
 }
 
-
-#save-backup-btn:hover{
-    background-color: #5A7011;
+#save-backup-btn:hover {
+    background-color: #FF6D24;
     color: #fdfae1;
 }
 
@@ -375,3 +374,41 @@
 .border-strong {
     border: 2px solid #a4c639 !important; 
 }
+
+#recovery-text {
+    font-family: 'Wavehaus', sans-serif;
+    margin-top: 10px;
+}
+
+#master-key-security {
+    font-family: 'Wavehaus', sans-serif;
+}
+
+#setup-message {
+    margin-top: 10px;
+    font-family: 'Wavehaus', sans-serif;
+    font-size: 15px;
+}
+
+#setup-phrase {
+    border-radius: 20px;
+}
+
+#codes-display {
+    display:none; 
+    background: #416302; 
+    padding: 15px; 
+    border: 1px solid #ffeeba; 
+    margin-top: 15px;
+    border-radius: 10px;
+    font-family: 'Wavehaus', sans-serif;
+    list-style-type: none;
+}
+
+#codes-display li {
+    list-style-type: none; 
+    margin-left: 80px;
+    margin-top: 5px;
+}
+
+

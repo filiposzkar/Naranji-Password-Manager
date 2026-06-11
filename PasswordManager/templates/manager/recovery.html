@@ -12,11 +12,11 @@
     <body>
     <div class="recovery-container">
         <img id="NaranjiLogo" src="{% static 'manager/assets/NaranjiLogo.png' %}">
-        <h1>Recover Master Key</h1>
-        <p id="descript">Enter your username and your 12-word recovery phrase to retrieve your Master Key.</p>
+        <h1 id="recover">Recover Master Key</h1>
+        <p id="descript">Enter username and recovery phrase to retrieve your Master Key</p>
         
         <input type="text" id="recovery-username" placeholder="Username">
-        <textarea id="recovery-phrase" placeholder="Enter your 12-word phrase here..."></textarea>
+        <textarea id="recovery-phrase" placeholder="Enter your recovery phrase here..."></textarea>
         
         <button id="recover-btn">Recover Master Key</button>
 
@@ -24,9 +24,8 @@
             Got the master key? <a href="{% url 'login' %}" id="login-link">Log In</a>
         </p>
         
-        <div id="master-key-display" style="display:none; margin-top: 20px; padding: 15px; border: 2px solid green;">
-            <p><strong>Your Master Key:</strong> <span id="key-text" style="color: green; font-weight: bold;"></span></p>
-            <p><small>Write it down and keep it safe. This will disappear when you refresh.</small></p>
+        <div id="master-key-display" style="display:none; margin-top: 20px; padding: 15px;">
+            <p id="your-key"><strong>Your Master Key:</strong> <span id="key-text"></span></p>
         </div>
         <p id="error-message" style="color: red;"></p>
     </div>

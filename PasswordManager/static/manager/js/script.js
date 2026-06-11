@@ -142,10 +142,10 @@ document.getElementById('save-backup-btn').addEventListener('click', function() 
     .then(result => {
         if (result.success) {
             messageElement.innerText = "Backup secured! You can now use the recovery page.";
-            messageElement.style.color = "green";
+            messageElement.style.color = "#a4c639";
         } else {
             messageElement.innerText = result.errorMsg;
-            messageElement.style.color = "red";
+            messageElement.style.color = "#FF6D24";
         }
     })
     .catch(err => {

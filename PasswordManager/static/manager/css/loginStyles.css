@@ -26,16 +26,31 @@ body {
   margin-left: 850px;
 }
 
-#NaranjiLogo {
+#NaranjiLogo1 {
   margin-top: 30px;
   width: 120px;
   height: 185px;
   margin-left: 10px;
 }
 
-#Naranji {
+#Naranji1 {
   margin-top: 15px;
   margin-left: -30px;
+  font-size: 60px;
+  color: #293A15;
+  font-family: 'ChiffonePersonalUse', serif;
+}
+
+#NaranjiLogo2 {
+  margin-top: -10px;
+  width: 120px;
+  height: 185px;
+  margin-left: 25px;
+}
+
+#Naranji2 {
+  margin-top: 5px;
+  margin-left: -10px;
   font-size: 60px;
   color: #293A15;
   font-family: 'ChiffonePersonalUse', serif;
@@ -44,8 +59,19 @@ body {
 #welcome-back {
   font-size: 26px;
   margin-left: -20px;
+  margin-bottom: 6px;
   color: #293A15;
   font-family: 'Wavehaus', sans-serif;
+}
+
+#enter-6-digit {
+  font-size: 26px;
+  margin-left: -50px;
+  margin-bottom: 10px;
+  margin-top: 50px;
+  color: #293A15;
+  font-family: 'Wavehaus', sans-serif;
+  font-weight: bold;
 }
 
 .sign-up-inputs {
@@ -98,14 +124,15 @@ body {
 
 
 #verify-mfa-button {
-  height: 30px;
+  height: 35px;
   width: 200px;
   border: none;
   cursor: pointer;
-  border-radius: 15px;
+  border-radius: 20px;
   background-color: #5A7011;
   color:#FFF8CE;
   margin-left: -10px;
+  font-size: 16px;
 }
 
 
@@ -115,8 +142,9 @@ body {
 }
 
 #login-step-2{
-  margin-top: 50px;
+  margin-top: 150px;
   margin-right: 150px;
+  gap: 10px;
 }
 
 #dont-have-account {
@@ -137,4 +165,25 @@ body {
 
 #signup-link:hover {
   color: #3d4f21;           
+}
+
+#forgot-key-text {
+  font-size: 15px; 
+  color: #f07a0b; 
+  display: block; 
+  margin-left: -55px; 
+  margin-top: 40px;
+  font-family: 'Wavehaus', sans-serif;
+  font-weight: bold;
+  text-decoration: none;
+}
+
+#forgot-key-text:hover {
+  color: #c46308; 
+}
+
+#dont-have-account {
+  margin-top: 15px;
+  font-weight: bold;
+  margin-left: -60px;
 }

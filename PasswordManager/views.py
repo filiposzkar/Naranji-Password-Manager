@@ -681,6 +681,7 @@ def observation_list(request):  # this functions displays the suspicious events
 
 
 class EnableMFAView(APIView):
+  authentication_classes = [SessionAuthentication]
   permission_classes = [IsAuthenticated]
 
   def get(self, request):
@@ -713,6 +714,7 @@ class EnableMFAView(APIView):
   
 
 class VerifyMFAView(APIView):
+  authentication_classes = [SessionAuthentication]
   permission_classes = [IsAuthenticated]
 
   def post(self, request):

@@ -135,7 +135,7 @@ body {
 }
 
 .modal-content {
-  background-color: #ffffff;
+  background-color: #FFF8CE;
   padding: 30px;
   border-radius: 12px;
   max-width: 550px; 
@@ -147,8 +147,8 @@ body {
 }
 
 .secret-key-display {
-  background-color: #f4f4f5;
-  border: 2px dashed #ff7a00; 
+  background-color: #ffffff;
+  border: 2px dashed #416302; 
   padding: 12px;
   margin: 20px 0;
   font-size: 1.1rem; 
@@ -162,13 +162,13 @@ body {
 }
 
 .warning-text {
-  color: #cc3330;
+  color: #eb8d00;
   font-size: 0.85rem;
   margin-bottom: 20px;
 }
 
 #closeModalBtn {
-  background-color: #ff7a00;
+  background-color: #537515;
   color: white;
   border: none;
   padding: 10px 20px;
@@ -179,7 +179,21 @@ body {
 }
 
 #closeModalBtn:hover {
-  background-color: #e06c00;
+  background-color: #293d03;
 }
 
+#already-have-account {
+  font-weight: bold;
+  margin-left: -50px;
+}
 
+#action-required {
+  margin-bottom: 10px;
+  font-family: 'Wavehaus', sans-serif;
+  color: #223809;
+}
+
+#info-text {
+  font-family: 'Wavehaus', sans-serif;
+  color: #223809;
+}

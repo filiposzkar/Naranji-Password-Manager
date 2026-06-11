@@ -19,15 +19,29 @@ html, body {
   margin-top: 100px;
 }
 
+#descript {
+  font-family: 'Wavehaus', sans-serif;
+  font-size: 16px;
+  color: #223809;
+  font-weight: bold;
+  margin-bottom: 2px;
+}
+
 #recover-btn {
   background-color: #5A7011;
   color: #FFF8CE;
-  border-radius: 10px;
+  border-radius: 20px;
   border: none;
-  width: 180px;
+  width: 240px;
   height: 35px;
   cursor: pointer;
-  margin-top: 10px;
+  font-size: 15px;
+  font-family: 'Wavehaus', sans-serif;
+  margin-top: 20px;
+
+  display: block;        
+  margin-left: 120px !important; 
+  margin-right: auto;  
 }
 
 #recover-btn:hover {
@@ -37,6 +51,11 @@ html, body {
 
 .recovery-container {
   background-color: #FFF8CE;
+}
+
+#recover {
+  margin-bottom: 10px;
+  margin-top: 2px;
 }
 
 #NaranjiLogo {
@@ -50,27 +69,66 @@ h1 {
   color:#223809;
 }
 
-#recover-btn {
-  margin-left: 160px;
-}
-
 #back-to-login {
-  margin-top: 20px;
-  font-size: 18px;
-  margin-left: 135px;
+  margin-top: 2px;
+  font-size: 15px;
+  margin-left: 145px;
   color: #223809;
   font-family: 'Wavehaus', sans-serif;
+  font-weight: bold;
 }
 
 #login-link {
   color: #62b108;          
   font-weight: bold;       
-  font-size: 1.15rem;      
+  font-size: 15px;      
   text-decoration: underline; 
   font-family: 'Wavehaus', sans-serif;
+  font-weight: bold;
+  text-decoration: none;
 }
 
 #login-link:hover {
   color: #3d4f21;           
 }
 
+#recovery-username {
+  display: block;
+  margin-top: 0;
+  border: 1px solid #ccc; 
+  border-radius: 20px; 
+  padding: 8px 15px;  
+  width: 90%;        
+  outline: none;   
+  font-family: 'Wavehaus', sans-serif;
+}
+
+#recovery-phrase {
+  display: block;
+  margin-top: 0;
+  border: 1px solid #ccc; 
+  border-radius: 15px; 
+  padding: 8px 15px;  
+  width: 90%;        
+  outline: none;   
+  font-family: 'Wavehaus', sans-serif;
+}
+
+#your-key {
+  font-family: 'Wavehaus', sans-serif;
+  font-weight: bold;
+  color: #223809;
+  font-size: 20px;
+}
+
+#key-text {
+  font-family: 'Wavehaus', sans-serif;
+  font-weight: bold;
+  color: #62b108;    
+  font-size: 20px;       
+}
+
+#master-key-display {
+  margin-left: 95px !important;
+  margin-top: -10px !important;
+}
